@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agience-flare-dkg-integration"
+version = "0.1.0"
+description = "Agience + FLARE integration bridge for DKG v10 Working Memory and Shared Memory workflows"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "Agience" }
+]
+dependencies = [
+  "httpx>=0.28,<0.29",
+  "pydantic>=2.12,<3",
+  "typer>=0.12,<1"
+]
+
+[project.scripts]
+agience-dkg = "agience_dkg_integration.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
