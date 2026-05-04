@@ -1,59 +1,118 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import httpx
 
-from .models import WorkingMemoryWriteRequest, WorkingMemoryWriteResult
+from .models import (
+    AssertionPromoteRequest,
+    AssertionPromoteResult,
+    MemorySearchRequest,
+    MemorySearchResult,
+    MemoryTurnRequest,
+    MemoryTurnResult,
+)
 
 
 class DkgHttpClient:
-    def __init__(self, base_url: str, bearer_token: str, *, timeout: float = 20.0) -> None:
+    """Thin synchronous wrapper around the DKG v10 node HTTP API (port 8081).
+
+    All methods raise httpx.HTTPStatusError on non-2xx responses.
+    Credentials are read from constructor arguments; never hardcoded.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        bearer_token: str,
+        *,
+        timeout: float = 30.0,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
-        self.bearer_token = bearer_token
-        self.timeout = timeout
+        self._bearer_token = bearer_token
+        self._timeout = timeout
 
     def _headers(self) -> Dict[str, str]:
         return {
-            "Authorization": f"Bearer {self.bearer_token}",
+            "Authorization": f"Bearer {self._bearer_token}",
             "Content-Type": "application/json",
         }
 
-    def write_working_memory(self, request: WorkingMemoryWriteRequest) -> WorkingMemoryWriteResult:
-        payload: Dict[str, Any] = {
+    def ping(self) -> bool:
+        """Return True if the node is reachable and the token is valid."""
+        try:
+            with httpx.Client(timeout=5.0) as http:
+                r = http.get(f"{self.base_url}/api/agents", headers=self._headers())
+                return r.status_code == 200
+        except Exception:
+            return False
+
+    def memory_turn(self, request: MemoryTurnRequest) -> MemoryTurnResult:
+        """Write a Knowledge Asset to Working Memory (or Shared Memory) via POST /api/memory/turn."""
+        body: Dict[str, Any] = {
             "contextGraphId": request.context_graph_id,
-            "title": request.title,
-            "content": request.content,
-            "metadata": {
-                "artifactId": request.artifact_id,
-                "artifactType": request.artifact_type,
-                "sourceCollectionId": request.source_collection_id,
-                "sourceReceiptIds": request.source_receipt_ids,
-                "tags": request.tags,
-                **request.metadata,
-            },
+            "markdown": request.markdown,
+            "layer": request.layer,
         }
-        endpoint = f"{self.base_url}/v1/working-memory/write"
-        with httpx.Client(timeout=self.timeout) as client:
-            response = client.post(endpoint, headers=self._headers(), json=payload)
-            response.raise_for_status()
-            body = response.json()
-        return WorkingMemoryWriteResult(
-            ok=True,
-            request_target=endpoint,
-            context_graph_id=request.context_graph_id,
-            assertion_id=body.get("assertionId") or body.get("id"),
-            batch_id=body.get("batchId"),
-            raw_response=body,
+        if request.session_uri:
+            body["sessionUri"] = request.session_uri
+        if request.sub_graph_name:
+            body["subGraphName"] = request.sub_graph_name
+
+        with httpx.Client(timeout=self._timeout) as http:
+            r = http.post(
+                f"{self.base_url}/api/memory/turn",
+                headers=self._headers(),
+                json=body,
+            )
+            r.raise_for_status()
+            raw = r.json()
+
+        return MemoryTurnResult(
+            turn_uri=raw.get("turnUri"),
+            layer=raw.get("layer"),
+            context_graph_id=raw.get("contextGraphId"),
+            raw_response=raw,
         )
 
+    def assertion_promote(self, request: AssertionPromoteRequest) -> AssertionPromoteResult:
+        """Promote a Working Memory assertion to Shared Memory (SHARE) via POST /api/assertion/:name/promote."""
+        body: Dict[str, Any] = {"contextGraphId": request.context_graph_id}
+        if request.entities:
+            body["entities"] = request.entities
 
-def write_working_memory_via_http(
-    *,
-    base_url: str,
-    bearer_token: str,
-    request: WorkingMemoryWriteRequest,
-    timeout: float = 20.0,
-) -> WorkingMemoryWriteResult:
-    client = DkgHttpClient(base_url=base_url, bearer_token=bearer_token, timeout=timeout)
-    return client.write_working_memory(request)
+        with httpx.Client(timeout=self._timeout) as http:
+            r = http.post(
+                f"{self.base_url}/api/assertion/{request.name}/promote",
+                headers=self._headers(),
+                json=body,
+            )
+            r.raise_for_status()
+            raw = r.json()
+
+        return AssertionPromoteResult(ok=True, name=request.name, raw_response=raw)
+
+    def memory_search(self, request: MemorySearchRequest) -> MemorySearchResult:
+        """Search Working and/or Shared Memory via POST /api/memory/search."""
+        body: Dict[str, Any] = {
+            "contextGraphId": request.context_graph_id,
+            "query": request.query,
+            "limit": request.limit,
+        }
+        if request.memory_layers:
+            body["memoryLayers"] = request.memory_layers
+
+        with httpx.Client(timeout=self._timeout) as http:
+            r = http.post(
+                f"{self.base_url}/api/memory/search",
+                headers=self._headers(),
+                json=body,
+            )
+            r.raise_for_status()
+            raw = r.json()
+
+        return MemorySearchResult(
+            result_count=raw.get("resultCount", 0),
+            results=raw.get("results", []),
+            raw_response=raw,
+        )

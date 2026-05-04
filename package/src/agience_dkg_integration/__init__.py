@@ -1,8 +1,19 @@
 __all__ = [
     "DkgHttpClient",
-    "WorkingMemoryWriteRequest",
-    "WorkingMemoryWriteResult",
+    "MemoryTurnRequest",
+    "MemoryTurnResult",
+    "AssertionPromoteRequest",
+    "AssertionPromoteResult",
+    "MemorySearchRequest",
+    "MemorySearchResult",
 ]
 
 from .client import DkgHttpClient
-from .models import WorkingMemoryWriteRequest, WorkingMemoryWriteResult
+from .models import (
+    AssertionPromoteRequest,
+    AssertionPromoteResult,
+    MemorySearchRequest,
+    MemorySearchResult,
+    MemoryTurnRequest,
+    MemoryTurnResult,
+)

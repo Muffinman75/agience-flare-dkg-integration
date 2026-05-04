@@ -2,24 +2,31 @@
 
 ## Maintainer
 
-Current submission-owner placeholder:
-
-- Maintainer name: Agience team
-- Contact: to be replaced with the submitting maintainer email or GitHub handle before PR creation
-- Repository owner: Agience contributor-owned integration repository
+- **Name:** Manoj Modhwadia
+- **GitHub:** [@Muffinman75](https://github.com/Muffinman75)
+- **Email:** manojmodhwadia@outlook.com
+- **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 
 ## Support commitment
 
-This integration is intended to be maintained for at least 6 months following registry acceptance, including issue triage, compatibility fixes for supported DKG v10 public interfaces, and reasonable response to reported defects.
+6-month support window from the date of registry acceptance.
 
-## Operational commitment notes
+Commitment includes:
+- Issue triage within 5 business days
+- Compatibility fixes when supported DKG v10 public interfaces change
+- Semantic versioning — breaking changes are major version bumps with migration notes
+- Response to security disclosures within 48 hours
 
-- supported public interface surface: DKG HTTP API in the current implementation, with CLI or MCP expansion optional later
-- no guarantee of internal DKG package compatibility beyond public interfaces
-- best-effort response window for critical defects should be added in the final PR if the maintainer wants stricter expectations
+## Scope
 
-## Finalization checklist
+The maintained surface is the DKG v10 public HTTP API:
+- `POST /api/memory/turn`
+- `POST /api/assertion/:name/promote`
+- `POST /api/memory/search`
+- `GET /api/agents`
 
-- replace the contact placeholder with the actual maintainer identity
-- confirm the repository owner that will receive issues and publish package releases
-- copy the final statement into the PR description and design brief if needed
+No guarantee of compatibility beyond these public interfaces if DKG internal packages change.
+
+## Contributor attestation
+
+The code in this repository is my own original work, written for the purpose of this integration. It is properly licensed under MIT. It contains no intentional backdoors, malicious code, or undeclared network behaviour. All external network contacts are declared in the security notes.

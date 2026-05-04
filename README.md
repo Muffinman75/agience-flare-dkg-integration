@@ -1,39 +1,115 @@
-# Agience FLARE DKG Integration
+# Agience FLARE × DKG v10 Integration
 
-This directory is the contributor-owned external integration package scaffold for the OriginTrail DKG v10 Round 1 submission.
+**Bounty tag:** `cfi-dkgv10-r1` | **License:** MIT | **Package:** `agience-flare-dkg-integration`
 
-## Why this lives in [`integration/`](.)
+Bridges [Agience](https://agience.ai) — a governed MCP-native artifact platform — and the [FLARE](https://github.com/Ikailo/flare-index) encrypted vector index into DKG v10 **Working Memory** and **Shared Memory**, implementing the LLM-Wiki / autoresearch collaborative knowledge substrate.
 
-This placement is the most logical trade-off between the bounty rules and Agience exposure:
+## What it does
 
-- it keeps the integration as a standalone submission artifact rather than burying it inside core platform internals
-- it still lives in the Agience workspace, so the submission visibly showcases Agience and the FLARE-aligned architecture
-- it can be split into its own repository or published package without needing to restructure core backend code later
+- Writes committed Agience artifacts (decisions, research notes, claims) to DKG v10 **Working Memory** as Knowledge Assets via `POST /api/memory/turn`
+- Promotes eligible Working Memory assets to **Shared Memory** (SHARE) via `POST /api/assertion/:name/promote`
+- Searches across Working Memory and Shared Memory via `POST /api/memory/search`
+- Formats artifacts as structured Markdown with consistent RDF-extractable field headers
+- Groups all artifacts for an Agience collection under a stable `sessionUri` for oracle-queryable Context Graph scoping
 
-## Round 1 scope
+FLARE optional path: when `protected-search` mode is enabled, only derived summary/claim projections are written to DKG; raw artifact content stays FLARE-encrypted.
 
-This integration targets:
-- DKG v10 Working Memory as the first write surface
-- Shared Memory as the next promotion path
-- forward-compatibility with Verified Memory and context oracles
+## Install
 
-It does **not** treat Verified Memory as the primary submission surface.
+```bash
+pip install agience-flare-dkg-integration
+```
 
-## Public interface discipline
+## Quick start
 
-Per the bounty requirements, the integration should consume DKG only through supported public interfaces:
-- node HTTP API
-- `dkg` CLI
-- MCP server
+```bash
+export DKG_BASE_URL=http://localhost:8081
+export DKG_TOKEN=your-bearer-token
 
-No internal DKG package imports or node patching should be introduced.
+# Write an artifact to Working Memory
+agience-dkg wm-write \
+  --title "Architecture Decision: use DKG v10" \
+  --artifact-type decision \
+  --artifact-id art-001 \
+  --content "We will use DKG v10 Working Memory as the shared knowledge substrate." \
+  --context-graph-id <your-context-graph-id> \
+  --collection-id my-project \
+  --author "Manoj" \
+  --tags "architecture,dkg-v10"
 
-## Planned package contents
+# Promote to Shared Memory (SHARE)
+agience-dkg promote <turnUri-from-above> --context-graph-id <id>
 
-- [`integration/package/`](package) standalone package code
-- [`integration/docs/`](docs) demo, security notes, maintainer statement, and submission brief assets
-- [`integration/registry/`](registry) PR-ready registry payload draft for [`OriginTrail/dkg-integrations`](https://github.com/OriginTrail/dkg-integrations)
+# Search
+agience-dkg search "architecture decisions" --context-graph-id <id>
+```
 
-## Current status
+## Python API
 
-This is a scaffold package boundary. The internal Agience backend work in [`agience-core/backend/api/dkg_integration.py`](../agience-core/backend/api/dkg_integration.py) and [`agience-core/backend/services/dkg_integration_service.py`](../agience-core/backend/services/dkg_integration_service.py) provides the first internal integration logic that this external package will wrap or expose.
+```python
+from agience_dkg_integration import DkgHttpClient, MemoryTurnRequest
+from agience_dkg_integration.formatter import artifact_to_markdown, session_uri_for_collection
+
+client = DkgHttpClient(base_url="http://localhost:8081", bearer_token="token")
+
+markdown = artifact_to_markdown(
+    title="My Research Note",
+    artifact_type="research-note",
+    artifact_id="art-001",
+    content="...",
+    author="Manoj",
+    tags=["dkg-v10"],
+    collection_id="my-project",
+)
+
+result = client.memory_turn(MemoryTurnRequest(
+    contextGraphId="my-context-graph",
+    markdown=markdown,
+    layer="wm",
+    sessionUri=session_uri_for_collection("my-project"),
+))
+print(result.turn_uri)
+```
+
+## Repository layout
+
+```
+package/          Python package source (agience_dkg_integration)
+  src/
+    agience_dkg_integration/
+      client.py     DkgHttpClient — memory_turn, assertion_promote, memory_search
+      models.py     Pydantic request/response models
+      formatter.py  artifact_to_markdown, session_uri_for_collection
+      cli.py        agience-dkg CLI (wm-write, promote, search)
+  tests/
+    unit/           19 unit tests (no live node required)
+    integration/    Live-node integration tests (skipped without env vars)
+docs/
+  security-notes.md
+  maintainer-statement.md
+  demo-script.md
+registry/
+  entry-template.md   PR payload for OriginTrail/dkg-integrations
+DESIGN_BRIEF.md       Full submission design brief
+LICENSE               MIT
+```
+
+## Running tests
+
+```bash
+# Unit tests (no DKG node required)
+pytest package/tests/unit -v
+
+# Integration tests (requires a local DKG v10 node)
+DKG_BASE_URL=http://localhost:8081 DKG_TOKEN=<token> DKG_CONTEXT_GRAPH=<id> \
+pytest package/tests/integration -v
+```
+
+## Design brief
+
+See [DESIGN_BRIEF.md](DESIGN_BRIEF.md) for the full submission brief covering problem, architecture, memory layer mapping, promotion path, oracle-readiness, and security notes.
+
+## Maintainer
+
+Manoj Modhwadia ([@Muffinman75](https://github.com/Muffinman75)) — manojmodhwadia@outlook.com  
+6-month support commitment from registry acceptance.
