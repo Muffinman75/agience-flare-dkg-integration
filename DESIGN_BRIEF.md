@@ -60,52 +60,28 @@ This integration bridges all three: Agience provides the governed authoring and 
 
 ## 5. Fit with LLM-Wiki / Autoresearch Direction
 
-This integration is not using DKG as incidental storage. The fit is direct:
+Karpathy's LLM-Wiki frames a knowledge substrate natively legible to language models, continuously curated by humans and agents. The v10 memory model maps this directly:
 
-Karpathy's LLM-Wiki frames a knowledge substrate natively legible to language models, continuously curated by a mixture of humans and agents. The v10 memory model maps this almost exactly:
+- **Working Memory** = agent-populated draft surface
+- **Shared Memory** = team-gossiped collaborative layer  
+- **Verified Memory** = chain-anchored trustable layer
 
-- **Working Memory** = the agent-populated draft surface where knowledge is created
-- **Shared Memory** = the team-gossiped collaborative layer where knowledge becomes multi-agent-readable
-- **Verified Memory** = the chain-anchored layer where knowledge becomes trustable
-
-Agience provides the governed loop that produces clean, attributed, receipt-linked artifacts — exactly the kind of input that makes DKG Working Memory useful rather than just a dump of raw LLM outputs. The artifacts written by this integration have:
-- stable identifiers (`artifact_id`)
-- typed structure (`artifact_type`: decision, research-note, claim, etc.)
-- provenance metadata (author, collection, committed timestamp)
-- consistent RDF-extractable Markdown field headers
-
-This means a downstream agent querying the Context Graph can retrieve, reason over, and act on the knowledge — not just retrieve raw text.
+Agience provides the governed loop producing clean, attributed artifacts with stable IDs, typed structure, and provenance metadata — making DKG Working Memory useful rather than a dump of raw LLM outputs. Downstream agents can retrieve, reason over, and act on this knowledge via Context Graph queries.
 
 ---
 
 ## 6. Architecture
 
-```
-Agience Platform
-  └── Artifact (committed, approved)
-        │
-        ├── formatter.py
-        │     └── artifact_to_markdown()     structured Markdown KA
-        │
-        ├── client.py
-        │     ├── memory_turn()              POST /api/memory/turn    → Working Memory
-        │     ├── assertion_promote()        POST /api/assertion/:n/promote  → Shared Memory
-        │     └── memory_search()            POST /api/memory/search
-        │
-        └── cli.py
-              ├── agience-dkg wm-write       write artifact to Working Memory
-              ├── agience-dkg promote        SHARE to Shared Memory
-              └── agience-dkg search         query Working + Shared Memory
+**Data flow:** Agience artifact (committed) → `formatter.py` (Markdown KA) → `client.py` → DKG v10 HTTP API.
 
-                    ↓ optional path ↓
+**Components:**
+- `formatter.py`: Structured Markdown with RDF-extractable headers
+- `client.py`: Thin wrapper around `POST /api/memory/turn`, `/api/assertion/:name/promote`, `/api/memory/search`
+- `cli.py`: `wm-write`, `promote`, `search` commands
 
-FLARE Index (confidential retrieval mediation)
-  └── Only activated for policy_class = "internal-confidential"
-  └── Exports derived summary/claim view rather than raw content
-  └── Raw evidence stays FLARE-protected; exportable projection goes to DKG WM
-```
+**Optional FLARE path:** When `policy_class = "internal-confidential"`, raw content stays FLARE-encrypted; only derived summaries are projected to DKG.
 
-**Public interfaces used:** DKG v10 node HTTP API only. No internal DKG package imports. No node patching.
+**Interfaces:** DKG v10 node HTTP API only. No internal DKG package imports.
 
 ---
 
@@ -149,7 +125,7 @@ All code and documentation uses exact DKG v10 vocabulary:
 - **PUBLISH** — promotion toward Verified Memory (Round 2)
 - **Curator** — the authority required for SHARE/PUBLISH
 
-One intentional deviation: the CLI `--layer` flag accepts `wm` / `swm` as shorthands for usability. Internal code and documentation always expand these to the full v10 terms.
+**Terminology note:** The CLI `--layer` flag accepts `wm` / `swm` as usability shorthands. All API responses, documentation, and internal code use the full v10 terms (Working Memory, Shared Memory). This deviation is justified as follows: (a) CLI ergonomics — command-line users expect concise flags; (b) no ambiguity — the mapping is 1:1 and documented; (c) API contracts remain pure — the shorthand is resolved to the full term before any DKG API call.
 
 The Agience-side terms (`collection`, `artifact`, `commit`) are explicitly not treated as DKG synonyms. They are upstream governance concepts that produce artifacts eligible for DKG projection.
 
@@ -179,3 +155,15 @@ The Agience-side terms (`collection`, `artifact`, `commit`) are explicitly not t
 **Issue response:** within 5 business days for reported defects  
 **Versioning:** semantic versioning; breaking changes are major version bumps with migration notes  
 **Scope:** compatibility with supported DKG v10 public interfaces — `POST /api/memory/turn`, `POST /api/assertion/:name/promote`, `POST /api/memory/search`
+
+---
+
+## 11. Round 2 Roadmap
+
+**Verified Memory (PUBLISH):** Extend `client.py` with `shared_memory_publish()` calling `POST /api/shared-memory/publish`. The receipt schema and UAL chain preservation are already in place.
+
+**OpenClaw Integration:** Add MCP server wrapper exposing `wm-write`, `promote`, `search` as MCP tools. This enables any MCP-capable agent (Claude Desktop, Cline, etc.) to read/write DKG memory directly.
+
+**Hermes Integration:** Implement `hermes-dkg` bridge for the Hermes agent framework, allowing Hermes agents to use DKG as their shared memory substrate.
+
+**Timeline:** Post-Round-1 acceptance. These extensions leverage the same core `client.py` and `formatter.py` — no architectural rewrite required.
