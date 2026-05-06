@@ -2,7 +2,7 @@
 
 **Bounty tag:** `cfi-dkgv10-r1` | **License:** MIT | **Package:** `agience-flare-dkg-integration`
 
-Bridges [Agience](https://github.com/Agience/agience-core) — a governed MCP-native artifact platform — and [FLARE](https://github.com/Agience/flare-index/blob/main/paper/flare.md) (encrypted vector index with confidential retrieval) into DKG v10 **Working Memory** and **Shared Memory**, implementing the LLM-Wiki / autoresearch collaborative knowledge substrate.
+Bridges [Agience](https://github.com/Agience/agience-core) — a governed MCP-native artifact platform — and [FLARE](https://github.com/Agience/flare-index) (encrypted vector index with confidential retrieval — [paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md)) into DKG v10 **Working Memory** and **Shared Memory**, implementing the LLM-Wiki / autoresearch collaborative knowledge substrate.
 
 ## What it does
 

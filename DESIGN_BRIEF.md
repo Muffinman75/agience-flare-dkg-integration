@@ -14,7 +14,7 @@ Long-horizon research and knowledge-producing agents generate durable artifacts 
 Two platforms already exist that partially solve this independently:
 
 - **[Agience](https://github.com/Agience/agience-core)** is an MCP-native AI knowledge platform providing governed artifact authoring, collection management, human-review commit boundaries, and provenance receipts. Artifacts mature through draft → commit lifecycle with explicit actor, authority, and approval tracking.
-- **[FLARE](https://github.com/Agience/flare-index/blob/main/paper/flare.md)** provides cryptographically enforced, AES-256-GCM encrypted vector search with path-predicate light-cone authorization and a propagation-mask permission model. It sits between the agent and the knowledge store, mediating access without exposing plaintext.
+- **[FLARE](https://github.com/Agience/flare-index)** ([paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md)) provides cryptographically enforced, AES-256-GCM encrypted vector search with path-predicate light-cone authorization and a propagation-mask permission model. It sits between the agent and the knowledge store, mediating access without exposing plaintext.
 
 What neither provides alone is a **shared, open, verifiable memory substrate** that multiple agents can read, write, and collaboratively mature over time. That is precisely what DKG v10 Working Memory and Shared Memory offer.
 
