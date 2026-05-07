@@ -11,6 +11,12 @@ class MemoryTurnRequest(BaseModel):
     layer: Literal["wm", "swm"] = "wm"
     session_uri: Optional[str] = Field(default=None, alias="sessionUri")
     sub_graph_name: Optional[str] = Field(default=None, alias="subGraphName")
+    artifact_type: Optional[str] = Field(default=None, alias="artifactType")
+    artifact_id: Optional[str] = Field(default=None, alias="artifactId")
+    title: Optional[str] = None
+    author: Optional[str] = None
+    tags: Optional[List[str]] = None
+    collection_id: Optional[str] = Field(default=None, alias="collectionId")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -19,6 +25,8 @@ class MemoryTurnResult(BaseModel):
     turn_uri: Optional[str] = Field(default=None, alias="turnUri")
     layer: Optional[str] = None
     context_graph_id: Optional[str] = Field(default=None, alias="contextGraphId")
+    status: Optional[str] = Field(default=None, description="'anchored' if UAL received, 'pending' if MCP succeeded but blockchain anchoring is pending/failed")
+    error: Optional[str] = Field(default=None, description="Descriptive error if MCP succeeded but DKG anchoring failed")
     raw_response: Dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(populate_by_name=True)

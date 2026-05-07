@@ -30,6 +30,7 @@ dev = [
 
 [project.scripts]
 agience-dkg = "agience_dkg_integration.cli:app"
+agience-dkg-mcp = "agience_dkg_integration.mcp_server:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

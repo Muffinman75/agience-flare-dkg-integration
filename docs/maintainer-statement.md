@@ -19,11 +19,10 @@ Commitment includes:
 
 ## Scope
 
-The maintained surface is the DKG v10 public HTTP API:
-- `POST /api/memory/turn`
-- `POST /api/assertion/:name/promote`
-- `POST /api/memory/search`
-- `GET /api/agents`
+The maintained surface is the DKG v10 public MCP interface:
+- `POST /mcp` → `dkg-create` tool (Working Memory write and Shared Memory promotion)
+- `POST /mcp` → `dkg-sparql-query` tool (memory search)
+- `GET /health` (health check)
 
 No guarantee of compatibility beyond these public interfaces if DKG internal packages change.
 

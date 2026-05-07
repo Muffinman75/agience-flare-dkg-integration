@@ -9,6 +9,26 @@ All credentials are read from environment variables — never hardcoded or logge
 
 No Agience platform credentials are required by this package. FLARE service credentials are only used when `retrieval_profile = protected-search` is explicitly configured by the operator — this mode is not enabled by default.
 
+## Agience Core policy model
+
+The Agience Core platform includes a `PolicyMappingRecord` that governs what content reaches DKG:
+
+- `policy_class` determines the confidentiality level (internal-standard, internal-confidential, export-approved, public-verifiable)
+- `export_profile` controls whether content can be projected (no-export, approval-required, derived-only, full-projection-allowed)
+- `promotion_profile` limits DKG stage eligibility (none, wm-only, swm-eligible, vm-eligible)
+- `retrieval_profile` routes retrieval through Agience, FLARE, or both (native-search, protected-search, mixed-search)
+
+Projection validation (`validate_projection_request()`) enforces that artifacts must be committed, pass export policy, and have an approval receipt before any content reaches DKG.
+
+## FLARE confidential retrieval boundary
+
+When `retrieval_profile = protected-search`, FLARE mediates the retrieval path with cryptographic enforcement:
+
+- Per-cell AES-256-GCM encryption with HKDF-derived keys
+- Shamir K-of-M threshold oracle key issuance — no single host compromise yields the master key
+- Ed25519 signed grant ledger with hash-chained tamper evidence
+- Only derived summaries or claim projections reach DKG; raw content stays encrypted
+
 ## Declared network egress
 
 All external domains contacted by this package:
@@ -22,20 +42,24 @@ No other external domains are contacted. No telemetry, no analytics endpoints, n
 
 Every DKG endpoint invoked by this package:
 
-| Endpoint | Operation | Authority |
+| Endpoint / Tool | Operation | Authority |
 |---|---|---|
-| `GET /api/agents` | Health check / token validation | Read-only |
-| `POST /api/memory/turn` | Write Knowledge Asset to Working Memory | Write (WM) |
-| `POST /api/assertion/:name/promote` | Promote WM assertion to Shared Memory | **Curator-authorized (SHARE)** |
-| `POST /api/memory/search` | Search Working and/or Shared Memory | Read-only |
+| `GET /health` | Health check | Read-only |
+| `POST /mcp` → `dkg-create` (privacy=private) | Write Knowledge Asset to Working Memory | Write (WM) |
+| `POST /mcp` → `dkg-create` (privacy=public) | Promote to Shared Memory (SHARE) | **Curator-authorized (SHARE)** |
+| `POST /mcp` → `dkg-sparql-query` | Search Working and/or Shared Memory | Read-only |
 
-The SHARE operation (`/api/assertion/:name/promote`) is **always explicit and operator-initiated**. It is never called automatically, silently, or as a side effect of a write operation.
+All write and search operations go through the **MCP Streamable HTTP transport** at `POST /mcp`. The SHARE operation (`dkg-create` with `privacy=public`) is **always explicit and operator-initiated**. It is never called automatically, silently, or as a side effect of a write operation.
 
 PUBLISH toward Verified Memory is not invoked in this Round 1 package.
 
+## MCP stdio server
+
+The `agience-dkg-mcp` entry point runs as an MCP stdio server. It reads `DKG_TOKEN` and `DKG_BASE_URL` from environment variables only — credentials are never accepted as tool arguments. The server exposes three tools (`agience_wm_write`, `agience_promote`, `agience_search`) that call through to the `DkgHttpClient` with the same security properties as the CLI.
+
 ## Curator authority stance
 
-No SHARE or PUBLISH operation is invoked without explicit caller intent. The CLI `promote` command requires the operator to pass a `turnUri` and `context_graph_id` explicitly. There is no background promotion loop.
+No SHARE or PUBLISH operation is invoked without explicit caller intent. The CLI `promote` command requires the operator to pass a `turnUri` and `context_graph_id` explicitly, and maps to `dkg-create` with `privacy=public` — there is no background promotion loop.
 
 ## Dynamic code loading
 

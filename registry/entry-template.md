@@ -13,7 +13,7 @@ Before filing the PR, fill in the two `TODO` values below (commit SHA and PyPI v
 - **Bounty tag:** `cfi-dkgv10-r1`
 - **Category:** agent-memory / research-workflow
 - **Round:** DKG v10 Round 1 — Working Memory and Shared Memory
-- **Primary interface:** DKG v10 node HTTP API
+- **Primary interface:** MCP stdio server (`agience-dkg-mcp`) + DKG v10 node MCP Streamable HTTP
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
 - **Package version:** `0.1.0` — TODO: confirm after `pip publish`
@@ -29,12 +29,22 @@ Before filing the PR, fill in the two `TODO` values below (commit SHA and PyPI v
 
 ## Declared write authority
 
-| Endpoint | Operation | Curator-sensitive |
+| Endpoint / Tool | Operation | Curator-sensitive |
 |---|---|---|
-| `POST /api/memory/turn` | Write Knowledge Asset to Working Memory | No |
-| `POST /api/assertion/:name/promote` | Promote to Shared Memory (SHARE) | **Yes** |
-| `POST /api/memory/search` | Search memory layers | No |
-| `GET /api/agents` | Health check | No |
+| `POST /mcp` → `dkg-create` (privacy=private) | Write Knowledge Asset to Working Memory | No |
+| `POST /mcp` → `dkg-create` (privacy=public) | Promote to Shared Memory (SHARE) | **Yes** |
+| `POST /mcp` → `dkg-sparql-query` | Search memory layers | No |
+| `GET /health` | Health check | No |
+
+## Parent platform repositories
+
+This integration is part of a larger body of work spanning three repositories:
+
+| Repository | Role | Key DKG-relevant components |
+|---|---|---|
+| [Agience Core](https://github.com/Agience/agience-core) | Governed MCP-native artifact platform | `backend/api/dkg_integration.py` (receipt schema, 233 lines), `backend/services/dkg_integration_service.py` (policy mapping, projection validation), 6 DKG service tests |
+| [FLARE Index](https://github.com/Agience/flare-index) | Cryptographic vector search | 101-test suite, AES-256-GCM per-cell encryption, Shamir K-of-M threshold oracle, [research paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md) |
+| This repository | Integration bridge | MCP stdio server, MCP Streamable HTTP client, typed JSON-LD, CLI, 43 unit tests + 5 integration tests |
 
 ## Compliance checklist
 
@@ -46,5 +56,7 @@ Before filing the PR, fill in the two `TODO` values below (commit SHA and PyPI v
 - [x] No dynamic code loading, no `eval` on remote input
 - [x] `pip audit --production` clean
 - [x] Contributor attestation in `docs/maintainer-statement.md`
+- [x] 155 total tests (43 integration pkg unit + 5 integration + 6 Agience Core DKG + 101 FLARE)
+- [x] GitHub Actions CI (unit tests, dependency audit, build verification)
 - [ ] Demo link — TODO: add after recording
-- [ ] Design brief link — `DESIGN_BRIEF.md` in repo root
+- [x] Design brief link — `DESIGN_BRIEF.md` in repo root

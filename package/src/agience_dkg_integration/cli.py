@@ -58,6 +58,12 @@ def wm_write(
         markdown=markdown,
         layer=layer,  # type: ignore[arg-type]
         sessionUri=session_uri,
+        artifactType=artifact_type,
+        artifactId=artifact_id,
+        title=title,
+        author=author or None,
+        tags=tag_list or None,
+        collectionId=collection_id or None,
     )
     result = client.memory_turn(request)
     typer.echo(result.model_dump_json(indent=2))

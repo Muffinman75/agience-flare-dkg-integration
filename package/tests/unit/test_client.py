@@ -54,96 +54,74 @@ def _patched(responses: dict) -> PatchedDkgHttpClient:
 
 
 def test_memory_turn_returns_turn_uri(monkeypatch):
-    turn_response = {"turnUri": "agience://wm/turn/abc123", "layer": "wm", "contextGraphId": "cg-1"}
+    mcp_response = {"result": {"content": [{"type": "text", "text": "Knowledge Asset collection successfully created.\n\nUAL: did:dkg:otp:20430/0xabc/1/1\nDKG Explorer link: https://dkg-explorer.example"}]}}
+    captured = {}
 
-    def fake_post(self_inner, url, *, headers, json, **kwargs):
-        assert "/api/memory/turn" in url
-        assert json["contextGraphId"] == "cg-1"
-        assert json["layer"] == "wm"
-        assert "markdown" in json
+    def fake_mcp_call_tool(self_inner, tool_name, arguments):
+        captured["tool"] = tool_name
+        captured["args"] = arguments
+        return mcp_response
 
-        class FakeResp:
-            status_code = 200
-            def raise_for_status(self): pass
-            def json(self): return turn_response
-
-        return FakeResp()
-
-    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    monkeypatch.setattr("agience_dkg_integration.client.DkgHttpClient._mcp_call_tool", fake_mcp_call_tool)
     client = DkgHttpClient(base_url="http://localhost:8081", bearer_token="tok")
     result = client.memory_turn(MemoryTurnRequest(contextGraphId="cg-1", markdown="**Title:** T\n\nBody"))
-    assert result.turn_uri == "agience://wm/turn/abc123"
+    assert captured["tool"] == "dkg-create"
+    assert captured["args"]["privacy"] == "private"
+    assert "cg-1" in captured["args"]["jsonld"]
+    assert result.turn_uri == "did:dkg:otp:20430/0xabc/1/1"
     assert result.layer == "wm"
 
 
 def test_assertion_promote_calls_correct_endpoint(monkeypatch):
-    promote_response = {"status": "promoted"}
+    mcp_response = {"result": {"content": [{"type": "text", "text": "Knowledge Asset collection successfully created.\n\nUAL: did:dkg:otp:20430/0xabc/1/2\nDKG Explorer link: https://dkg-explorer.example"}]}}
     captured = {}
 
-    def fake_post(self_inner, url, *, headers, json, **kwargs):
-        captured["url"] = url
-        captured["body"] = json
+    def fake_mcp_call_tool(self_inner, tool_name, arguments):
+        captured["tool"] = tool_name
+        captured["args"] = arguments
+        return mcp_response
 
-        class FakeResp:
-            status_code = 200
-            def raise_for_status(self): pass
-            def json(self): return promote_response
-
-        return FakeResp()
-
-    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    monkeypatch.setattr("agience_dkg_integration.client.DkgHttpClient._mcp_call_tool", fake_mcp_call_tool)
     client = DkgHttpClient(base_url="http://localhost:8081", bearer_token="tok")
     result = client.assertion_promote(
         AssertionPromoteRequest(name="abc123", contextGraphId="cg-1")
     )
-    assert "/api/assertion/abc123/promote" in captured["url"]
-    assert captured["body"]["contextGraphId"] == "cg-1"
+    assert captured["tool"] == "dkg-create"
+    assert captured["args"]["privacy"] == "public"
+    assert "abc123" in captured["args"]["jsonld"]
     assert result.ok is True
     assert result.name == "abc123"
 
 
 def test_memory_search_sends_correct_body(monkeypatch):
-    search_response = {"resultCount": 2, "results": [{"id": "r1"}, {"id": "r2"}]}
+    mcp_response = {"result": {"content": [{"type": "text", "text": '✅ Query executed successfully\n\n**Results:**\n```json\n{"data": [{"s": "x", "text": "r1"}, {"s": "y", "text": "r2"}]}\n```'}]}}
     captured = {}
 
-    def fake_post(self_inner, url, *, headers, json, **kwargs):
-        captured["url"] = url
-        captured["body"] = json
+    def fake_mcp_call_tool(self_inner, tool_name, arguments):
+        captured["tool"] = tool_name
+        captured["args"] = arguments
+        return mcp_response
 
-        class FakeResp:
-            status_code = 200
-            def raise_for_status(self): pass
-            def json(self): return search_response
-
-        return FakeResp()
-
-    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    monkeypatch.setattr("agience_dkg_integration.client.DkgHttpClient._mcp_call_tool", fake_mcp_call_tool)
     client = DkgHttpClient(base_url="http://localhost:8081", bearer_token="tok")
     result = client.memory_search(
         MemorySearchRequest(contextGraphId="cg-1", query="research note", limit=5, memoryLayers=["wm"])
     )
-    assert "/api/memory/search" in captured["url"]
-    assert captured["body"]["query"] == "research note"
-    assert captured["body"]["limit"] == 5
-    assert captured["body"]["memoryLayers"] == ["wm"]
-    assert result.result_count == 2
-    assert len(result.results) == 2
+    assert captured["tool"] == "dkg-sparql-query"
+    assert "research note" in captured["args"]["query"]
+    assert "cg-1" in captured["args"]["query"]
 
 
-def test_authorization_header_sent(monkeypatch):
-    captured_headers = {}
-
-    def fake_post(self_inner, url, *, headers, json, **kwargs):
-        captured_headers.update(headers)
-
-        class FakeResp:
-            status_code = 200
-            def raise_for_status(self): pass
-            def json(self): return {"turnUri": "x", "layer": "wm"}
-
-        return FakeResp()
-
-    monkeypatch.setattr(httpx.Client, "post", fake_post)
+def test_authorization_header_included(monkeypatch):
+    """Verify the bearer token is included in request headers."""
     client = DkgHttpClient(base_url="http://localhost:8081", bearer_token="my-secret-token")
-    client.memory_turn(MemoryTurnRequest(contextGraphId="cg-1", markdown="body"))
-    assert captured_headers.get("Authorization") == "Bearer my-secret-token"
+    headers = client._headers()
+    assert headers["Authorization"] == "Bearer my-secret-token"
+
+
+def test_authorization_header_with_session_id(monkeypatch):
+    """Verify the mcp-session-id header is included when provided."""
+    client = DkgHttpClient(base_url="http://localhost:8081", bearer_token="tok")
+    headers = client._headers(session_id="sess-42")
+    assert headers["mcp-session-id"] == "sess-42"
+    assert headers["Authorization"] == "Bearer tok"

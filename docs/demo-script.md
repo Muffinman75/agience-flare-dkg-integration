@@ -1,57 +1,188 @@
-# Demo Script
+# Demo Script — Agience FLARE × DKG v10 Integration
 
 ## Goal
 
-Produce a working walkthrough for the Round 1 submission showing:
-- artifact creation in Agience
-- approval or commit boundary
-- DKG Working Memory write path
-- Shared Memory promotion path or clearly demonstrated next-step path
-- provenance visibility
+Produce a walkthrough for the Flagship Round 1 submission showing the **three-layer trust gradient**: Agience Core (governed authoring with native DKG models) → FLARE (cryptographic retrieval boundary) → DKG v10 (shared verifiable memory). The demo must cover:
 
-## Suggested demo flow
+- The platform-level DKG models in Agience Core
+- The integration package: CLI, MCP server, typed JSON-LD
+- Working Memory write, Shared Memory promotion, search
+- Full test suite (unit + integration)
+- FLARE reference and confidential retrieval path
 
-### Scene 1: create knowledge in Agience
+## Services required
 
-1. open the Agience workspace UI
-2. create or ingest a research note, decision artifact, or structured summary
-3. show that the artifact exists first as workspace-local draft knowledge
+| Service | Start command | URL |
+|---|---|---|
+| DKG v10 agent node | `node dist/index.js` (in `dkg-node/apps/agent`) | `http://localhost:8081` |
 
-### Scene 2: review and commit
+Environment variables needed:
+```bash
+export DKG_BASE_URL=http://localhost:8081
+export DKG_TOKEN=<bearer-token>
+export DKG_CONTEXT_GRAPH=agience-demo
+```
 
-1. open the commit or review flow
-2. show that durable publication in Agience requires explicit human action
-3. if available, show commit-related provenance or receipt output
+---
 
-### Scene 3: DKG Working Memory write
+## Scene 1: The three-layer architecture (narration + slides)
 
-1. trigger the integration path that exports the approved artifact or derived claim view
-2. show the public-interface call path used by the integration package
-3. show the resulting Working Memory write outcome
+Open the DESIGN_BRIEF.md and show the three-layer data flow diagram. Narrate:
 
-### Scene 4: Shared Memory progression
+> "This isn't a thin wrapper around a DKG API call. It's a platform-level integration across three systems. Agience Core provides governed authoring — every artifact is typed, versioned, and committed through a human-review gate. FLARE provides a cryptographic confidentiality boundary when the source material is sensitive. And DKG v10 provides the shared, verifiable memory substrate."
 
-1. either demonstrate actual Shared Memory progression
-2. or show the policy and promotion path that makes the WM artifact eligible for SWM
-3. explain that Verified Memory is intentionally not the primary Round 1 focus
+Show the key code files in Agience Core:
 
-### Scene 5: provenance and readiness for later rounds
+```bash
+# Show the DKG receipt schema (233 lines of Pydantic models)
+head -60 ../agience-core/backend/api/dkg_integration.py
 
-1. show receipt or provenance objects linking source artifact, approval, and WM write
-2. explain how the same path is designed to support later VM and oracle-readiness without redesign
+# Show the policy mapping and projection validation
+head -40 ../agience-core/backend/services/dkg_integration_service.py
+
+# Show that workspace_service calls build_commit_receipt on every commit
+grep -n "build_commit_receipt\|dkg_integration" ../agience-core/backend/services/workspace_service.py
+```
+
+Narrate: "Every Agience commit already generates a DKG-compatible receipt with actor, authority, and artifact references. The policy model evaluates what content reaches DKG — and FLARE mediates the retrieval path when content is classified as confidential."
+
+---
+
+## Scene 2: DKG node is running
+
+```bash
+curl http://localhost:8081/health
+# → {"status":"ok","version":"..."}
+```
+
+---
+
+## Scene 3: Write an artifact to Working Memory
+
+```bash
+agience-dkg wm-write \
+  --title "Architecture Decision: DKG v10 as shared memory substrate" \
+  --artifact-type decision \
+  --artifact-id demo-001 \
+  --content "We will use DKG v10 Working Memory as the shared knowledge substrate for agent collaboration. This enables multi-agent read/write access to a verifiable, open knowledge graph." \
+  --context-graph-id agience-demo \
+  --collection-id agience-architecture \
+  --author "Manoj Modhwadia" \
+  --tags "architecture,dkg-v10,working-memory"
+```
+
+Expected output: JSON with `turn_uri` (UAL), `status` (anchored or pending), and `layer` (wm).
+
+Narrate: "The Knowledge Asset is typed JSON-LD with the `agience:` RDF vocabulary — not a generic `schema:Article`. It has a `@type` of `agience:decision`, predicates like `agience:author`, `agience:tags`, `agience:collection`, and `agience:memoryLayer`. This makes it SPARQL-queryable by type across Context Graphs."
+
+If `status: pending`: "The MCP transport succeeded — the DKG node accepted the Knowledge Asset. Blockchain anchoring is pending because the testnet RPC is temporarily unavailable. The integration clearly distinguishes transport success from anchoring state."
+
+---
+
+## Scene 4: Promote to Shared Memory (SHARE)
+
+```bash
+agience-dkg promote <turn_uri_from_above> --context-graph-id agience-demo
+```
+
+Expected output: JSON confirming the promotion (SHARE operation via `dkg-create` with `privacy=public`).
+
+Narrate: "This is a Curator-authorized operation. Nothing is promoted automatically — the operator explicitly calls promote with the UAL from the Working Memory write."
+
+---
+
+## Scene 5: Search memory
+
+```bash
+agience-dkg search "architecture decisions DKG working memory" --context-graph-id agience-demo
+```
+
+Expected output: SPARQL query results using `agience:` predicates.
+
+---
+
+## Scene 6: MCP server (agent integration)
+
+```bash
+# Show the MCP server starts cleanly
+agience-dkg-mcp &
+# → "agience-dkg MCP server running on stdio"
+kill %1
+```
+
+Show the Claude Desktop / Cursor config:
+
+```json
+{
+  "mcpServers": {
+    "agience-dkg": {
+      "command": "agience-dkg-mcp",
+      "env": {
+        "DKG_BASE_URL": "http://localhost:8081",
+        "DKG_TOKEN": "<token>"
+      }
+    }
+  }
+}
+```
+
+Narrate: "Any MCP-capable agent — Claude Desktop, Cursor, Claude Code — can add this config and immediately use `agience_wm_write`, `agience_promote`, `agience_search` tools. Combined with Agience Core's 11-tool MCP server, agents can curate knowledge and write to DKG memory in a single workflow."
+
+---
+
+## Scene 7: Run the full test suite
+
+```bash
+# Unit tests (43 tests, no live node needed)
+pytest package/tests/unit -v
+
+# Integration tests (requires live DKG node)
+DKG_BASE_URL=http://localhost:8081 \
+DKG_TOKEN=<token> \
+DKG_CONTEXT_GRAPH=agience-test \
+pytest package/tests/integration -v
+```
+
+Expected output: `43 passed` (unit) + `5 passed` (integration).
+
+Narrate: "43 unit tests cover the MCP server tool definitions and message routing, typed JSON-LD generation with the agience vocabulary, error status detection for blockchain failures, client operations, Pydantic models, and the formatter. 5 integration tests run end-to-end against the live DKG node."
+
+---
+
+## Scene 8: FLARE reference (optional — show tests)
+
+```bash
+# Show FLARE's 101-test suite (runs in Docker)
+cd ../flare-index && make test
+```
+
+Narrate: "FLARE provides the cryptographic confidentiality boundary. When an Agience collection is classified as `internal-confidential`, only derived projections reach DKG — raw content stays AES-256-GCM encrypted with per-cell keys issued by a Shamir threshold oracle. The integration's policy model routes retrieval through FLARE when needed."
+
+---
 
 ## Recording checklist
 
 - [ ] screen capture is readable
-- [ ] narration explains Working Memory and Shared Memory explicitly
-- [ ] no hidden manual steps are omitted
-- [ ] any local services or endpoints used are listed at the end of the video
-- [ ] the demo reflects actual implemented behavior, not only future plans
+- [ ] three-layer architecture is explained (Agience Core → FLARE → DKG)
+- [ ] Agience Core's DKG receipt schema and policy model are shown
+- [ ] Working Memory and Shared Memory are explained using correct v10 terminology
+- [ ] MCP transport (`POST /mcp`) is mentioned
+- [ ] MCP server (`agience-dkg-mcp`) is shown with Claude Desktop config
+- [ ] typed `agience:` JSON-LD vocabulary is shown and explained
+- [ ] `turn_uri` from wm-write is shown being passed to promote
+- [ ] blockchain anchoring state (`status: anchored` vs `pending`) is addressed
+- [ ] unit test run shows 43 passed
+- [ ] integration test run shows 5 passed
+- [ ] FLARE is referenced (test suite or paper)
+- [ ] no competitor submissions are mentioned
+- [ ] services and env vars are listed
 
-## Repro notes to capture alongside demo
+## Transport notes (for narration)
 
-- Agience backend start command
-- integration package start command or invocation path
-- DKG local node start steps
-- exact trigger used to write into WM
-- exact trigger used to demonstrate SWM progression or SWM readiness
+All DKG calls use the **MCP Streamable HTTP transport**:
+- `POST /mcp` initialises an MCP session (JSON-RPC `initialize`)
+- `POST /mcp` calls `dkg-create` or `dkg-sparql-query` as MCP tools
+- Tool call responses stream back as SSE (`text/event-stream`); the client reads the first `data:` event
+- Working Memory write = `dkg-create` with `privacy: "private"`
+- Shared Memory promotion (SHARE) = `dkg-create` with `privacy: "public"`
+- Search = `dkg-sparql-query` with a SPARQL SELECT query

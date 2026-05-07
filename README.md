@@ -2,17 +2,26 @@
 
 **Bounty tag:** `cfi-dkgv10-r1` | **License:** MIT | **Package:** `agience-flare-dkg-integration`
 
-Bridges [Agience](https://github.com/Agience/agience-core) — a governed MCP-native artifact platform — and [FLARE](https://github.com/Agience/flare-index) (encrypted vector index with confidential retrieval — [paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md)) into DKG v10 **Working Memory** and **Shared Memory**, implementing the LLM-Wiki / autoresearch collaborative knowledge substrate.
+A **platform-level integration** bridging [Agience Core](https://github.com/Agience/agience-core) (governed MCP-native artifact platform), [FLARE](https://github.com/Agience/flare-index) (cryptographically enforced encrypted vector search — [paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md)), and DKG v10 Working Memory / Shared Memory into a three-layer trust gradient for collaborative knowledge production.
 
-## What it does
+## Why three layers matter
 
-- Writes committed Agience artifacts (decisions, research notes, claims) to DKG v10 **Working Memory** as Knowledge Assets via `POST /api/memory/turn`
-- Promotes eligible Working Memory assets to **Shared Memory** (SHARE) via `POST /api/assertion/:name/promote`
-- Searches across Working Memory and Shared Memory via `POST /api/memory/search`
-- Formats artifacts as structured Markdown with consistent RDF-extractable field headers
-- Groups all artifacts for an Agience collection under a stable `sessionUri` for oracle-queryable Context Graph scoping
+DKG v10 provides the shared memory substrate. But what gets written there matters: raw LLM outputs are noise; governed, typed, attributed Knowledge Assets are signal. And when the source material is sensitive, a confidentiality boundary determines what reaches the shared layer.
 
-FLARE optional path: when `protected-search` mode is enabled, only derived summary/claim projections are written to DKG; raw artifact content stays FLARE-encrypted.
+- **Agience Core** — governed authoring: typed artifacts, versioned collections, human-review commit gates, provenance receipts, 11-tool MCP server, 8 agent persona servers. DKG receipt schemas and policy routing are built directly into the platform.
+- **FLARE** — confidential retrieval: AES-256-GCM encrypted vector search with Shamir K-of-M threshold oracle, Ed25519 signed grant ledger, light-cone graph authorization. 101 tests, 95.6% recall vs plaintext FAISS.
+- **DKG v10** — open verifiable memory: Working Memory → Shared Memory → Verified Memory.
+
+## What this package does
+
+- **MCP stdio server** (`agience-dkg-mcp`) — exposes `agience_wm_write`, `agience_promote`, `agience_search` tools for Claude Desktop, Cursor, Claude Code, and any MCP host
+- Writes committed Agience artifacts to DKG v10 **Working Memory** as typed JSON-LD Knowledge Assets with the `agience:` RDF vocabulary — SPARQL-queryable by type, author, collection, and memory layer
+- Promotes eligible assets to **Shared Memory** (SHARE) via `dkg-create` (privacy=public)
+- Searches across memory layers via `dkg-sparql-query` with typed predicates
+- All DKG calls use **MCP Streamable HTTP** at `POST /mcp` with SSE stream handling
+- Groups all artifacts under a stable `sessionUri` for oracle-queryable Context Graph scoping
+- Distinguishes MCP transport success from blockchain anchoring state (`status: anchored` vs `status: pending`)
+- FLARE optional path: when `policy_class = "internal-confidential"`, only derived projections reach DKG; raw content stays encrypted
 
 ## Install
 
@@ -20,7 +29,27 @@ FLARE optional path: when `protected-search` mode is enabled, only derived summa
 pip install agience-flare-dkg-integration
 ```
 
-## Quick start
+## MCP Server (for Claude Desktop, Cursor, etc.)
+
+Add to your MCP client config (e.g. `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "agience-dkg": {
+      "command": "agience-dkg-mcp",
+      "env": {
+        "DKG_BASE_URL": "http://localhost:8081",
+        "DKG_TOKEN": "your-bearer-token"
+      }
+    }
+  }
+}
+```
+
+This exposes three tools: `agience_wm_write`, `agience_promote`, `agience_search`.
+
+## CLI Quick start
 
 ```bash
 export DKG_BASE_URL=http://localhost:8081
@@ -74,27 +103,39 @@ print(result.turn_uri)
 ## Repository layout
 
 ```
-package/          Python package source (agience_dkg_integration)
+package/                Python package source (agience_dkg_integration)
   src/
     agience_dkg_integration/
-      client.py     DkgHttpClient — memory_turn, assertion_promote, memory_search
-      models.py     Pydantic request/response models
-      formatter.py  artifact_to_markdown, session_uri_for_collection
-      cli.py        agience-dkg CLI (wm-write, promote, search)
+      mcp_server.py     MCP stdio server (agience-dkg-mcp entry point)
+      client.py         DkgHttpClient — MCP Streamable HTTP to DKG node
+      models.py         Pydantic request/response models with artifact metadata
+      formatter.py      artifact_to_markdown, session_uri_for_collection
+      cli.py            agience-dkg CLI (wm-write, promote, search)
   tests/
-    unit/           19 unit tests (no live node required)
-    integration/    Live-node integration tests (skipped without env vars)
+    unit/               43 unit tests (MCP server, JSON-LD, error handling, models)
+    integration/        5 live-node integration tests
 docs/
   security-notes.md
   maintainer-statement.md
   demo-script.md
 registry/
-  entry-template.md   PR payload for OriginTrail/dkg-integrations
-DESIGN_BRIEF.md       Full submission design brief
-LICENSE               MIT
+  entry-template.md     PR payload for OriginTrail/dkg-integrations
+DESIGN_BRIEF.md         Full submission design brief
+LICENSE                 MIT
 ```
 
-## Running tests
+**Parent platform repositories** (DKG models and FLARE integration are part of the same body of work):
+- [Agience Core](https://github.com/Agience/agience-core) — `backend/api/dkg_integration.py` (receipt schemas), `backend/services/dkg_integration_service.py` (policy mapping, projection validation), 6 DKG service tests
+- [FLARE Index](https://github.com/Agience/flare-index) — 101-test encrypted vector search, [research paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md)
+
+## Test coverage
+
+| Suite | Count | Requires DKG node |
+|---|---|---|
+| Integration package unit tests | 43 | No |
+| Integration package integration tests | 5 | Yes |
+| Agience Core DKG service tests | 6 | No |
+| FLARE test suite | 101 | No (Docker only) |
 
 ```bash
 # Unit tests (no DKG node required)
@@ -107,7 +148,7 @@ pytest package/tests/integration -v
 
 ## Design brief
 
-See [DESIGN_BRIEF.md](DESIGN_BRIEF.md) for the full submission brief covering problem, architecture, memory layer mapping, promotion path, oracle-readiness, and security notes.
+See [DESIGN_BRIEF.md](DESIGN_BRIEF.md) for the full submission brief covering the three-layer architecture (Agience Core + FLARE + DKG), platform-level DKG models, receipt schema, policy mapping, promotion path, oracle-readiness, and security notes.
 
 ## Maintainer
 

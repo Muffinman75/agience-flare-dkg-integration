@@ -6,6 +6,7 @@ __all__ = [
     "AssertionPromoteResult",
     "MemorySearchRequest",
     "MemorySearchResult",
+    "mcp_server",
 ]
 
 from .client import DkgHttpClient
