@@ -17,7 +17,7 @@ Before filing the PR, fill in the two `TODO` values below (commit SHA and PyPI v
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
 - **Package version:** `0.1.1`
-- **Pinned commit SHA:** `abdc2e9` (tag `v0.1.0`)
+- **Pinned commit SHA:** `2e3dfa5` (tag `v0.1.1`)
 - **License:** MIT
 - **SPDX:** `MIT`
 - **Maintainer:** Manoj Modhwadia — manojmodhwadia@outlook.com — [@Muffinman75](https://github.com/Muffinman75)
