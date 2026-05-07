@@ -26,7 +26,22 @@ This submission bridges three systems at the architectural level to provide both
 
 ---
 
-## 2. What Makes This a Platform-Level Integration
+## 2. Why This Is a Flagship-Level Submission
+
+Most DKG integrations write content to Working Memory and call it done. This submission is structurally different:
+
+| Capability | What this means |
+|---|---|
+| **Governed authoring, not raw writes** | Content passes through human-review commit gates, typed artifact models, and versioned collections before it ever reaches DKG. Every commit generates a DKG-compatible receipt (actor, authority, artifact refs). |
+| **Policy-controlled projection** | A five-dimension `PolicyMappingRecord` (policy class, promotion profile, export profile, retrieval profile, identity profile) governs *what* content reaches DKG, *at which stage*, and *through which retrieval path*. This is evaluated before every write — not bolted on after. |
+| **Cryptographic confidentiality boundary** | When source material is sensitive, FLARE physically encrypts content at the vector-cell level (AES-256-GCM, Shamir K-of-M threshold oracle key issuance). Only derived projections reach DKG; raw content stays encrypted. This is not redaction or access control — it's cryptographic enforcement. |
+| **Typed RDF Knowledge Assets** | Custom `agience:` namespace with 8+ domain-specific predicates (`agience:author`, `agience:tags`, `agience:collection`, `agience:memoryLayer`, `agience:artifactId`, etc.). Assets are SPARQL-queryable by type across Context Graphs — not opaque blobs. |
+| **MCP at every layer** | Agience Core exposes 11 MCP tools + 8 persona servers; the integration exposes 3 MCP tools; the DKG node receives calls via MCP Streamable HTTP. End-to-end MCP from authoring to blockchain. |
+| **155 tests across 4 suites** | 43 integration package unit tests + 5 live-node integration tests + 6 Agience Core DKG service tests + 101 FLARE tests. Policy precedence, receipt chain validation, FLARE routing, crypto, and end-to-end DKG operations are all tested. |
+
+---
+
+## 3. What Makes This a Platform-Level Integration
 
 This is not a CLI wrapper around a DKG API endpoint. DKG awareness is embedded at multiple layers of the Agience platform itself.
 
@@ -92,7 +107,7 @@ An agent in Claude Desktop can call Agience tools to curate knowledge, call DKG 
 
 ---
 
-## 3. Target Users
+## 4. Target Users
 
 - **Research and knowledge teams** running agent-assisted workflows: literature review, architecture decisions, post-mortems, claim synthesis
 - **Multi-agent systems** where one agent writes a research note or decision artifact and a downstream agent needs to retrieve and reason over it — the DKG Working Memory becomes the shared scratchpad
@@ -103,17 +118,17 @@ An agent in Claude Desktop can call Agience tools to curate knowledge, call DKG 
 
 ---
 
-## 4. Memory Layers Touched
+## 5. Memory Layers Touched
 
 | Layer | Role in this integration |
 |---|---|
 | **Working Memory** | Primary write surface. Every committed Agience artifact that meets policy is written to Working Memory via the MCP `dkg-create` tool (privacy=private) over the Streamable HTTP transport at `POST /mcp`. |
 | **Shared Memory** | Promotion surface. Policy-eligible Working Memory artifacts are promoted via `dkg-create` (privacy=public) — the SHARE operation. Explicit and operator-initiated — never automatic. |
-| **Verified Memory** | Forward path (Round 2). The promotion profiles, receipt lineage, and UAL references are shaped for VM promotion without a rewrite. See §8. |
+| **Verified Memory** | Forward path (Round 2). The promotion profiles, receipt lineage, and UAL references are shaped for VM promotion without a rewrite. See §9. |
 
 ---
 
-## 5. v10 Primitives Used
+## 6. v10 Primitives Used
 
 | Primitive | How used |
 |---|---|
@@ -128,7 +143,7 @@ An agent in Claude Desktop can call Agience tools to curate knowledge, call DKG 
 
 ---
 
-## 6. Fit with LLM-Wiki / Autoresearch Direction
+## 7. Fit with LLM-Wiki / Autoresearch Direction
 
 Karpathy's LLM-Wiki frames a knowledge substrate natively legible to language models, continuously curated by humans and agents. The v10 memory model maps this directly:
 
@@ -140,7 +155,7 @@ Agience provides the governed loop producing clean, attributed artifacts with st
 
 ---
 
-## 7. Architecture
+## 8. Architecture
 
 ### Three-layer data flow
 
@@ -216,7 +231,7 @@ MCP Streamable HTTP — `POST /mcp` with `Accept: application/json, text/event-s
 
 ---
 
-## 8. Promotion Path and Oracle-Readiness
+## 9. Promotion Path and Oracle-Readiness
 
 ### Working Memory → Shared Memory (SHARE)
 
@@ -245,7 +260,7 @@ Every Knowledge Asset written by this package:
 
 ---
 
-## 9. Terminology
+## 10. Terminology
 
 All code and documentation uses exact DKG v10 vocabulary:
 
@@ -260,7 +275,7 @@ The CLI `--layer` flag accepts `wm` / `swm` as usability shorthands. All API res
 
 ---
 
-## 10. Security Notes
+## 11. Security Notes
 
 - All credentials (`DKG_TOKEN`, `DKG_BASE_URL`) are read from environment variables — never hardcoded, never logged
 - No SHARE or PUBLISH operation is performed automatically — all promotion is explicit and operator-initiated
@@ -279,7 +294,7 @@ The CLI `--layer` flag accepts `wm` / `swm` as usability shorthands. All API res
 
 ---
 
-## 11. Test Coverage
+## 12. Test Coverage
 
 | Suite | Count | Scope |
 |---|---|---|
@@ -290,7 +305,7 @@ The CLI `--layer` flag accepts `wm` / `swm` as usability shorthands. All API res
 
 ---
 
-## 12. Maintenance Commitment
+## 13. Maintenance Commitment
 
 **Maintainer:** Manoj Modhwadia ([@Muffinman75](https://github.com/Muffinman75)) — manojmodhwadia@outlook.com  
 **Support window:** 6 months from registry acceptance  
@@ -300,7 +315,7 @@ The CLI `--layer` flag accepts `wm` / `swm` as usability shorthands. All API res
 
 ---
 
-## 13. Round 2 Roadmap
+## 14. Round 2 Roadmap
 
 **Verified Memory (PUBLISH):** Extend `client.py` with `shared_memory_publish()`. The receipt schema, UAL chain preservation, and `vm-eligible` policy profile are already in place.
 

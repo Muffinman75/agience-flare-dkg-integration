@@ -23,6 +23,17 @@ DKG v10 provides the shared memory substrate. But what gets written there matter
 - Distinguishes MCP transport success from blockchain anchoring state (`status: anchored` vs `status: pending`)
 - FLARE optional path: when `policy_class = "internal-confidential"`, only derived projections reach DKG; raw content stays encrypted
 
+## What makes this different
+
+| | Typical DKG integration | This submission |
+|---|---|---|
+| **What gets written** | Raw content or unstructured payloads | Governed, committed, typed artifacts that pass a five-dimension policy evaluation before reaching DKG |
+| **Who decides what reaches DKG** | The calling code | A `PolicyMappingRecord` with policy class, promotion profile, export profile, retrieval profile, and identity profile — evaluated at commit time |
+| **Sensitive content** | Omitted or manually redacted | Physically encrypted by FLARE (AES-256-GCM per-cell, Shamir threshold oracle key issuance); only derived projections reach DKG |
+| **Knowledge Asset structure** | Generic `schema:Article` or flat JSON | Typed `agience:` RDF vocabulary with 8+ SPARQL-queryable predicates across Context Graphs |
+| **Provenance** | None or ad-hoc | Seven receipt types (commit, grant, revoke, access, projection, publication, provenance) generated on every commit |
+| **Test coverage** | Package-level tests | 155 tests across 4 suites: integration package (43 unit + 5 integration), Agience Core DKG service (6), FLARE (101) |
+
 ## Install
 
 ```bash
