@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Agience + FLARE integration bridge for DKG v10 Working Memory and Shared Memory workflows"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
   { name = "Manoj Modhwadia", email = "manojmodhwadia@outlook.com" }
 ]
