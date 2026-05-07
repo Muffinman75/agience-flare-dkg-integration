@@ -75,4 +75,4 @@ This package:
 - MIT license, SPDX identifier `MIT`
 - `pip audit --production` clean
 - Dependencies pinned with lower bounds only (`httpx>=0.27`, `pydantic>=2.0,<3`, `typer>=0.12,<1`) for compatibility
-- Published to PyPI as `agience-flare-dkg-integration==0.1.0`
+- Published to PyPI as `agience-flare-dkg-integration==0.1.1` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`)
