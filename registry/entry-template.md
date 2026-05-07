@@ -16,8 +16,8 @@ Before filing the PR, fill in the two `TODO` values below (commit SHA and PyPI v
 - **Primary interface:** MCP stdio server (`agience-dkg-mcp`) + DKG v10 node MCP Streamable HTTP
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
-- **Package version:** `0.1.0` — TODO: confirm after `pip publish`
-- **Pinned commit SHA:** TODO: fill after release tag is cut
+- **Package version:** `0.1.0`
+- **Pinned commit SHA:** `abdc2e9` (tag `v0.1.0`)
 - **License:** MIT
 - **SPDX:** `MIT`
 - **Maintainer:** Manoj Modhwadia — manojmodhwadia@outlook.com — [@Muffinman75](https://github.com/Muffinman75)
@@ -48,7 +48,7 @@ This integration is part of a larger body of work spanning three repositories:
 
 ## Compliance checklist
 
-- [x] Package published to PyPI with build provenance (GitHub Actions `pypa/gh-action-pypi-publish` with `attestations: true`)
+- [x] Package published to PyPI (`agience-flare-dkg-integration==0.1.0`)
 - [x] No `postinstall` or `preinstall` scripts
 - [x] LICENSE file present, SPDX = `MIT`
 - [x] Network egress declared above
