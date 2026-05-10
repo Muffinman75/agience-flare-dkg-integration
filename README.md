@@ -2,9 +2,11 @@
 
 **Bounty tag:** `cfi-dkgv10-r1` | **License:** MIT | **Package:** `agience-flare-dkg-integration`
 
-A **platform-level integration** bridging [Agience Core](https://github.com/Agience/agience-core) (governed MCP-native artifact platform), [FLARE](https://github.com/Agience/flare-index) (cryptographically enforced encrypted vector search — [paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md)), and DKG v10 Working Memory / Shared Memory into a three-layer trust gradient for collaborative knowledge production.
+**The governance layer above `dkg mcp setup`.** OriginTrail's official `dkg mcp setup` (shipped 7 May 2026) makes MCP-to-DKG a two-command commodity. **This integration is what sits upstream** — Agience Core for commit-gated authoring, FLARE for cryptographic confidentiality, and typed `agience:` RDF Knowledge Assets — so what reaches Working Memory is governed, attributable, and SPARQL-queryable, not raw LLM output.
 
-## Why three layers matter
+See [`docs/vs-dkg-mcp-setup.md`](docs/vs-dkg-mcp-setup.md) for the head-to-head.
+
+## The three-layer architecture
 
 DKG v10 provides the shared memory substrate. But what gets written there matters: raw LLM outputs are noise; governed, typed, attributed Knowledge Assets are signal. And when the source material is sensitive, a confidentiality boundary determines what reaches the shared layer.
 
@@ -32,7 +34,7 @@ DKG v10 provides the shared memory substrate. But what gets written there matter
 | **Sensitive content** | Omitted or manually redacted | Physically encrypted by FLARE (AES-256-GCM per-cell, Shamir threshold oracle key issuance); only derived projections reach DKG |
 | **Knowledge Asset structure** | Generic `schema:Article` or flat JSON | Typed `agience:` RDF vocabulary with 8+ SPARQL-queryable predicates across Context Graphs |
 | **Provenance** | None or ad-hoc | Seven receipt types (commit, grant, revoke, access, projection, publication, provenance) generated on every commit |
-| **Test coverage** | Package-level tests | 155 tests across 4 suites: integration package (43 unit + 5 integration), Agience Core DKG service (6), FLARE (101) |
+| **Test coverage** | Package-level tests | 172 tests across 4 suites: integration package (60 unit + 5 integration), Agience Core DKG service (6), FLARE (101) |
 
 ## Install
 
@@ -123,7 +125,7 @@ package/                Python package source (agience_dkg_integration)
       formatter.py      artifact_to_markdown, session_uri_for_collection
       cli.py            agience-dkg CLI (wm-write, promote, search)
   tests/
-    unit/               43 unit tests (MCP server, JSON-LD, error handling, models)
+    unit/               60 unit tests (governance gate, MCP server, JSON-LD, client, models)
     integration/        5 live-node integration tests
 docs/
   security-notes.md

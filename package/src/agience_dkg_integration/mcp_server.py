@@ -16,6 +16,11 @@ import os
 import sys
 from typing import Any, Dict, Sequence
 
+from .agience_client import (
+    AgienceClient,
+    AgienceClientError,
+    ArtifactNotCommittedError,
+)
 from .client import DkgHttpClient
 from .formatter import artifact_to_markdown, session_uri_for_collection
 from .models import AssertionPromoteRequest, MemorySearchRequest, MemoryTurnRequest
@@ -61,15 +66,29 @@ TOOLS = [
     {
         "name": "agience_wm_write",
         "description": (
-            "Write an Agience artifact to DKG v10 Working Memory as a Knowledge Asset. "
-            "The artifact is formatted as structured JSON-LD with an agience: RDF vocabulary "
-            "and written via the MCP dkg-create tool (privacy=private). Returns the UAL (turn_uri) "
-            "of the created Knowledge Asset."
+            "Write a governed Agience artifact to DKG v10 Working Memory as a typed "
+            "`agience:` Knowledge Asset. Unlike raw `dkg-create` (which accepts free-form "
+            "payloads from any agent), this records artifact metadata (type, author, "
+            "collection, sessionUri, memoryLayer) with the `agience:` RDF vocabulary so "
+            "the resulting asset is SPARQL-queryable by type across Context Graphs and "
+            "preserves the provenance chain back to the originating Agience commit. "
+            "Returns the UAL (turn_uri) and an explicit anchored/pending status that "
+            "distinguishes MCP transport success from blockchain anchoring state."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title": {"type": "string", "description": "Artifact title"},
+                "from_agience_artifact": {
+                    "type": "string",
+                    "description": (
+                        "GOVERNED MODE: fetch the named artifact from a running "
+                        "Agience instance (AGIENCE_BASE_URL / AGIENCE_TOKEN) and "
+                        "refuse to project unless its state is 'committed'. When set, "
+                        "title/artifact_type/artifact_id/content/etc. become optional "
+                        "overrides; values come from the Agience record."
+                    ),
+                },
+                "title": {"type": "string", "description": "Artifact title (required unless from_agience_artifact is set)"},
                 "artifact_type": {
                     "type": "string",
                     "description": "Artifact type: architecture-decision, research-note, claim, citation, summary",
@@ -85,15 +104,18 @@ TOOLS = [
                     "description": "Tags for the artifact",
                 },
             },
-            "required": ["title", "artifact_type", "artifact_id", "content", "context_graph_id"],
+            "required": ["context_graph_id"],
         },
     },
     {
         "name": "agience_promote",
         "description": (
-            "Promote a Working Memory Knowledge Asset to Shared Memory (SHARE operation). "
-            "This is a Curator-authorized operation that publishes the artifact as a public "
-            "Knowledge Asset via dkg-create (privacy=public)."
+            "Promote a Working Memory Knowledge Asset to Shared Memory (the v10 SHARE "
+            "operation). Curator-authorized and explicit — never automatic and never "
+            "triggered as a side effect of a write. Eligibility is gated upstream by the "
+            "Agience `PolicyMappingRecord.promotion_profile` (must be `swm-eligible` or "
+            "`vm-eligible`). Publishes as a public Knowledge Asset via `dkg-create` "
+            "(privacy=public) while preserving the UAL chain for Round 2 Verified Memory."
         ),
         "inputSchema": {
             "type": "object",
@@ -110,8 +132,11 @@ TOOLS = [
     {
         "name": "agience_search",
         "description": (
-            "Search Working Memory and/or Shared Memory for Agience artifacts via SPARQL. "
-            "Returns matching Knowledge Assets from the specified Context Graph."
+            "Search Working Memory and/or Shared Memory for typed Agience Knowledge Assets "
+            "via SPARQL using the `agience:` RDF vocabulary. Filterable by memory layer, "
+            "artifact type, author, collection, and sessionUri — not opaque blob retrieval. "
+            "Read-only. Returns matching Knowledge Assets scoped to the specified "
+            "Context Graph."
         ),
         "inputSchema": {
             "type": "object",
@@ -148,14 +173,51 @@ def _execute_tool(name: str, arguments: Dict[str, Any]) -> str:
     client = _get_client()
 
     if name == "agience_wm_write":
-        tags = arguments.get("tags", [])
+        from_artifact_id = arguments.get("from_agience_artifact", "")
+        title = arguments.get("title", "")
+        artifact_type = arguments.get("artifact_type", "")
+        artifact_id = arguments.get("artifact_id", "")
+        content = arguments.get("content", "")
+        author = arguments.get("author")
+        tags = arguments.get("tags", []) or []
         collection_id = arguments.get("collection_id", "")
+        commit_receipt_id: str | None = None
+
+        if from_artifact_id:
+            ag = AgienceClient()
+            artifact = ag.get_committed_artifact(from_artifact_id)
+            title = title or artifact.title
+            artifact_type = artifact_type or artifact.artifact_type
+            artifact_id = artifact_id or artifact.id
+            content = content or artifact.content
+            author = author or artifact.author
+            if not tags and artifact.tags:
+                tags = artifact.tags
+            collection_id = collection_id or (artifact.collection_id or "")
+            commit_receipt_id = artifact.commit_receipt_id
+
+        missing = [
+            n
+            for n, v in (
+                ("title", title),
+                ("artifact_type", artifact_type),
+                ("artifact_id", artifact_id),
+                ("content", content),
+            )
+            if not v
+        ]
+        if missing:
+            raise ValueError(
+                f"Missing required field(s): {', '.join(missing)}. "
+                "Supply them directly or use from_agience_artifact."
+            )
+
         markdown = artifact_to_markdown(
-            title=arguments["title"],
-            artifact_type=arguments["artifact_type"],
-            artifact_id=arguments["artifact_id"],
-            content=arguments["content"],
-            author=arguments.get("author"),
+            title=title,
+            artifact_type=artifact_type,
+            artifact_id=artifact_id,
+            content=content,
+            author=author,
             tags=tags,
             collection_id=collection_id or None,
         )
@@ -165,12 +227,13 @@ def _execute_tool(name: str, arguments: Dict[str, Any]) -> str:
             markdown=markdown,
             layer="wm",
             sessionUri=session_uri,
-            artifactType=arguments["artifact_type"],
-            artifactId=arguments["artifact_id"],
-            title=arguments["title"],
-            author=arguments.get("author"),
+            artifactType=artifact_type,
+            artifactId=artifact_id,
+            title=title,
+            author=author,
             tags=tags or None,
             collectionId=collection_id or None,
+            commitReceiptId=commit_receipt_id,
         )
         result = client.memory_turn(request)
         return result.model_dump_json(indent=2)
@@ -217,7 +280,7 @@ def _handle_message(msg: Dict[str, Any]) -> Dict[str, Any] | None:
                 "capabilities": {"tools": {}},
                 "serverInfo": {
                     "name": "agience-dkg",
-                    "version": "0.1.0",
+                    "version": "0.2.0",
                 },
             },
         }

@@ -24,20 +24,25 @@ This submission bridges three systems at the architectural level to provide both
 
 - **DKG v10** — Working Memory, Shared Memory, and Verified Memory as the open, verifiable, collaborative memory substrate.
 
+**Why this matters now.** As of 7 May 2026, OriginTrail shipped `dkg mcp setup` — a two-command path that wires any MCP-compatible client (Cursor, Claude Desktop, Claude Code, Cline, Codex, Windsurf, VS Code Copilot Chat) to DKG Working Memory. That's the new floor, and it solves *transport*. It does not solve *governance*: there is no human-review commit boundary, no policy-controlled projection, no cryptographic confidentiality boundary, and no typed RDF vocabulary above raw `dkg-create` calls. This integration delivers exactly that upstream governance, so what reaches the shared substrate is signal, not noise. The head-to-head comparison is in §2 below and in [`docs/vs-dkg-mcp-setup.md`](docs/vs-dkg-mcp-setup.md).
+
 ---
 
 ## 2. Why This Is a Flagship-Level Submission
 
-Most DKG integrations write content to Working Memory and call it done. This submission is structurally different:
+The official `dkg mcp setup` makes MCP transport to DKG a commodity. This submission is structurally different — it is the governance layer above the commodity floor:
 
-| Capability | What this means |
-|---|---|
-| **Governed authoring, not raw writes** | Content passes through human-review commit gates, typed artifact models, and versioned collections before it ever reaches DKG. Every commit generates a DKG-compatible receipt (actor, authority, artifact refs). |
-| **Policy-controlled projection** | A five-dimension `PolicyMappingRecord` (policy class, promotion profile, export profile, retrieval profile, identity profile) governs *what* content reaches DKG, *at which stage*, and *through which retrieval path*. This is evaluated before every write — not bolted on after. |
-| **Cryptographic confidentiality boundary** | When source material is sensitive, FLARE physically encrypts content at the vector-cell level (AES-256-GCM, Shamir K-of-M threshold oracle key issuance). Only derived projections reach DKG; raw content stays encrypted. This is not redaction or access control — it's cryptographic enforcement. |
-| **Typed RDF Knowledge Assets** | Custom `agience:` namespace with 8+ domain-specific predicates (`agience:author`, `agience:tags`, `agience:collection`, `agience:memoryLayer`, `agience:artifactId`, etc.). Assets are SPARQL-queryable by type across Context Graphs — not opaque blobs. |
-| **MCP at every layer** | Agience Core exposes 11 MCP tools + 8 persona servers; the integration exposes 3 MCP tools; the DKG node receives calls via MCP Streamable HTTP. End-to-end MCP from authoring to blockchain. |
-| **155 tests across 4 suites** | 43 integration package unit tests + 5 live-node integration tests + 6 Agience Core DKG service tests + 101 FLARE tests. Policy precedence, receipt chain validation, FLARE routing, crypto, and end-to-end DKG operations are all tested. |
+| Capability | `dkg mcp setup` (the new floor) | This integration |
+|---|---|---|
+| **MCP transport to DKG** | ✅ Two-command install for any MCP host | ✅ MCP stdio server (compatible, complementary) |
+| **Human-review commit boundary** | ❌ Direct `dkg-create` from any agent | ✅ Workspace → Collection commit gate; nothing reaches DKG without explicit approval |
+| **Typed artifact extraction** | ❌ Free-form payloads | ✅ Decision / claim / constraint / action unit artifacts with evidence quotes and source attribution |
+| **Policy-controlled projection** | ❌ None | ✅ Five-dimension `PolicyMappingRecord` (policy class, promotion profile, export profile, retrieval profile, identity profile) evaluated before every write |
+| **Cryptographic confidentiality** | ❌ Plaintext only | ✅ FLARE AES-256-GCM cell-level encryption with Shamir K-of-M threshold oracle and Ed25519 signed grant ledger (101 tests) |
+| **Typed RDF vocabulary** | ❌ Generic JSON-LD | ✅ `agience:` namespace with 8+ SPARQL-queryable predicates (`agience:author`, `agience:tags`, `agience:collection`, `agience:memoryLayer`, `agience:artifactId`, `agience:contextGraphId`, `agience:subGraphName`, `schema:isPartOf`) |
+| **Receipt / provenance chain** | ❌ None | ✅ Seven structured receipt types (commit, grant, revoke, access, projection, publication, provenance) link every Agience commit to its DKG UAL |
+| **End-to-end MCP** | ✅ Transport only | ✅ Agience Core 11 MCP tools + 8 persona servers + this integration's 3 MCP tools + DKG node MCP Streamable HTTP |
+| **Test coverage** | Package-level | ✅ 172 tests across 4 suites: integration package (60 unit + 5 integration), Agience Core DKG service (6), FLARE (101) |
 
 ---
 
@@ -298,7 +303,7 @@ The CLI `--layer` flag accepts `wm` / `swm` as usability shorthands. All API res
 
 | Suite | Count | Scope |
 |---|---|---|
-| Integration package unit tests | 43 | MCP server tool definitions and message routing, JSON-LD vocabulary generation, error status detection, client operations, Pydantic models, formatter |
+| Integration package unit tests | 60 | Governance gate (Agience client + governed-mode CLI), MCP server tool definitions and message routing, JSON-LD vocabulary generation, error status detection, client operations, Pydantic models, formatter |
 | Integration package integration tests | 5 | End-to-end against live DKG node: WM write, SWM promote, search, health check |
 | Agience Core DKG service tests | 6 | Receipt chain validation, policy precedence, FLARE retrieval routing, projection validation |
 | FLARE test suite | 101 | Crypto, identity, wire protocol, light cone, oracle service + threshold + peer protocol, signed ledger, storage signing, multi-endpoint failover, sealed key storage, padding, cell-key TTL, caching, centroid gate, end-to-end, concurrent revocation |

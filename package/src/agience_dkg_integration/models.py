@@ -17,6 +17,15 @@ class MemoryTurnRequest(BaseModel):
     author: Optional[str] = None
     tags: Optional[List[str]] = None
     collection_id: Optional[str] = Field(default=None, alias="collectionId")
+    commit_receipt_id: Optional[str] = Field(
+        default=None,
+        alias="commitReceiptId",
+        description=(
+            "Agience CommitReceipt ID for the originating commit. Set automatically "
+            "when the artifact is fetched via --from-agience-artifact (governed mode). "
+            "When present, it is projected as agience:commitReceiptId in the JSON-LD."
+        ),
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agience-flare-dkg-integration"
-version = "0.1.1"
-description = "Agience + FLARE integration bridge for DKG v10 Working Memory and Shared Memory workflows"
+version = "0.2.0"
+description = "Governed authoring layer above DKG v10: commit-gated Agience artifacts, policy-controlled projection, FLARE confidentiality, typed agience: RDF Knowledge Assets."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

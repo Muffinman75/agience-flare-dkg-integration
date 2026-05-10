@@ -18,12 +18,33 @@ class TestToolDefinitions:
         assert names == {"agience_wm_write", "agience_promote", "agience_search"}
 
     def test_wm_write_required_fields(self):
+        """Only context_graph_id is statically required.
+
+        title/artifact_type/artifact_id/content are conditionally required: either
+        supplied directly or sourced from --from-agience-artifact (governed mode).
+        The conditional check lives in `_execute_tool` and is covered by the
+        governed-mode tests below.
+        """
         wm = next(t for t in TOOLS if t["name"] == "agience_wm_write")
         required = wm["inputSchema"]["required"]
-        assert "title" in required
-        assert "artifact_type" in required
-        assert "content" in required
-        assert "context_graph_id" in required
+        assert required == ["context_graph_id"]
+        properties = wm["inputSchema"]["properties"]
+        assert "from_agience_artifact" in properties
+        assert "title" in properties
+        assert "artifact_type" in properties
+        assert "content" in properties
+
+    def test_wm_write_governance_described_in_tool(self):
+        """The tool description must explicitly differentiate vs `dkg-create`."""
+        wm = next(t for t in TOOLS if t["name"] == "agience_wm_write")
+        desc = wm["description"]
+        assert "dkg-create" in desc
+        assert "agience:" in desc
+
+    def test_promote_description_calls_out_curator(self):
+        promo = next(t for t in TOOLS if t["name"] == "agience_promote")
+        desc = promo["description"].lower()
+        assert "curator" in desc
 
     def test_promote_required_fields(self):
         promo = next(t for t in TOOLS if t["name"] == "agience_promote")

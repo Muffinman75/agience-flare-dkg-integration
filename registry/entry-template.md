@@ -11,12 +11,13 @@ Before filing the PR, fill in the two `TODO` values below (commit SHA and PyPI v
 - **Name:** Agience FLARE × DKG v10 Integration
 - **Slug:** `agience-flare-dkg-integration`
 - **Bounty tag:** `cfi-dkgv10-r1`
-- **Category:** agent-memory / research-workflow
+- **Category:** agent-memory / research-workflow / governance
 - **Round:** DKG v10 Round 1 — Working Memory and Shared Memory
-- **Primary interface:** MCP stdio server (`agience-dkg-mcp`) + DKG v10 node MCP Streamable HTTP
+- **One-line summary:** Governance layer above DKG v10 — commit-gated Agience artifacts, policy-controlled projection, FLARE confidentiality, typed `agience:` RDF Knowledge Assets. Complementary to (not a replacement for) `dkg mcp setup`.
+- **Primary interface:** DKG v10 MCP Streamable HTTP (`POST /mcp`) — `dkg-create` and `dkg-sparql-query` tools
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
-- **Package version:** `0.1.1`
+- **Package version:** `0.2.0` — TODO: confirm after PyPI publish
 - **Pinned commit SHA:** `2e3dfa5` (tag `v0.1.1`)
 - **License:** MIT
 - **SPDX:** `MIT`
@@ -44,7 +45,7 @@ This integration is part of a larger body of work spanning three repositories:
 |---|---|---|
 | [Agience Core](https://github.com/Agience/agience-core) | Governed MCP-native artifact platform | `backend/api/dkg_integration.py` (receipt schema, 233 lines), `backend/services/dkg_integration_service.py` (policy mapping, projection validation), 6 DKG service tests |
 | [FLARE Index](https://github.com/Agience/flare-index) | Cryptographic vector search | 101-test suite, AES-256-GCM per-cell encryption, Shamir K-of-M threshold oracle, [research paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md) |
-| This repository | Integration bridge | MCP stdio server, MCP Streamable HTTP client, typed JSON-LD, CLI, 43 unit tests + 5 integration tests |
+| This repository | Integration bridge | MCP stdio server, MCP Streamable HTTP client, typed JSON-LD, CLI, governed-mode (`--from-agience-artifact`) gate, 60 unit tests + 5 integration tests |
 
 ## Compliance checklist
 
@@ -56,7 +57,7 @@ This integration is part of a larger body of work spanning three repositories:
 - [x] No dynamic code loading, no `eval` on remote input
 - [x] `pip audit --production` clean
 - [x] Contributor attestation in `docs/maintainer-statement.md`
-- [x] 155 total tests (43 integration pkg unit + 5 integration + 6 Agience Core DKG + 101 FLARE)
+- [x] 172 total tests (60 integration pkg unit + 5 integration + 6 Agience Core DKG + 101 FLARE)
 - [x] GitHub Actions CI (unit tests, dependency audit, build verification)
 - [ ] Demo link — TODO: add after recording
 - [x] Design brief link — `DESIGN_BRIEF.md` in repo root

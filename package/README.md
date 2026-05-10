@@ -1,6 +1,8 @@
 # agience-flare-dkg-integration
 
-A **platform-level integration** bridging [Agience Core](https://github.com/Agience/agience-core) (governed MCP-native artifact platform), [FLARE](https://github.com/Agience/flare-index) (cryptographically enforced encrypted vector search), and OriginTrail DKG v10 Working Memory / Shared Memory into a three-layer trust gradient for collaborative knowledge production.
+**The governance layer above `dkg mcp setup`.** OriginTrail's official `dkg mcp setup` (shipped 7 May 2026) makes MCP-to-DKG a two-command commodity. **This package is what sits upstream** — committed [Agience Core](https://github.com/Agience/agience-core) artifacts, optional [FLARE](https://github.com/Agience/flare-index) confidentiality, and typed `agience:` RDF Knowledge Assets — so what reaches Working Memory is governed, attributable, and SPARQL-queryable, not raw LLM output.
+
+See the [head-to-head comparison](https://github.com/Muffinman75/agience-flare-dkg-integration/blob/main/docs/vs-dkg-mcp-setup.md) and [design brief](https://github.com/Muffinman75/agience-flare-dkg-integration/blob/main/DESIGN_BRIEF.md).
 
 ## Features
 

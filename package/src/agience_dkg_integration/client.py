@@ -178,6 +178,8 @@ class DkgHttpClient:
             jsonld["schema:isPartOf"] = request.session_uri
         if request.sub_graph_name:
             jsonld["agience:subGraphName"] = request.sub_graph_name
+        if request.commit_receipt_id:
+            jsonld["agience:commitReceiptId"] = request.commit_receipt_id
 
         raw = self._mcp_call_tool("dkg-create", {
             "jsonld": json.dumps(jsonld),
