@@ -57,7 +57,7 @@ def patched_httpx(monkeypatch):
 
 def test_get_committed_artifact_returns_artifact(patched_httpx):
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/api/artifacts/art-001"
+        assert request.url.path == "/artifacts/art-001"
         assert request.headers["Authorization"] == "Bearer test-token"
         return httpx.Response(
             200,

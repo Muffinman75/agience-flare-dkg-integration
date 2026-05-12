@@ -1,6 +1,6 @@
 # `dkg mcp setup` vs Agience FLARE × DKG v10 Integration
 
-**Last updated:** 10 May 2026
+**Last updated:** 12 May 2026 (verified against DKG v10.0.0-rc.6, released 10 May 2026)
 
 On 7 May 2026 OriginTrail shipped `dkg mcp setup` — a two-command path that wires any MCP-compatible client (Cursor, Claude Desktop, Claude Code, Cline, Codex, Windsurf, VS Code Copilot Chat) to DKG Working Memory:
 
@@ -20,7 +20,7 @@ This is excellent and solves the transport problem. **This integration is the go
 | **MCP transport to DKG** | ✅ Two-command install | ✅ MCP stdio server (compatible, complementary) |
 | **Works with Claude / Cursor / Cline / Codex / Windsurf / Copilot Chat** | ✅ | ✅ |
 | **Human-review commit boundary** | ❌ Any agent calls `dkg-create` directly | ✅ Workspace → Collection commit gate; nothing reaches DKG without explicit human approval |
-| **Typed artifact extraction** | ❌ Free-form payloads | ✅ Decision / claim / constraint / action unit artifacts with evidence quotes |
+| **Structured commit review** | ❌ No review surface | ✅ `CommitReviewDialog` shows every changed artifact, its target collection, and provenance attribution before the human confirms |
 | **Policy-controlled projection** | ❌ None | ✅ Five-dimension `PolicyMappingRecord` evaluated before every write |
 | **Cryptographic confidentiality boundary** | ❌ Plaintext content reaches DKG | ✅ FLARE AES-256-GCM cell-level encryption + Shamir K-of-M threshold oracle (101 tests) |
 | **Typed RDF Knowledge Assets** | ❌ Generic JSON-LD | ✅ `agience:` namespace, 8+ SPARQL-queryable predicates |
@@ -35,12 +35,12 @@ This is excellent and solves the transport problem. **This integration is the go
 
 Without governance, an MCP-connected agent can `dkg-create` anything at any time. With Agience Core upstream, every artifact passes:
 
-1. Drafted in a workspace
-2. Optionally extracted into typed unit artifacts (decision, claim, constraint)
-3. Reviewed in commit preview (warns on missing provenance)
-4. **Explicit human commit** to a versioned collection
-5. Policy evaluated against `PolicyMappingRecord`
-6. Only then projected to DKG with a `ProjectionReceipt`
+1. Drafted in a workspace (Agience artifacts have a `state` field with `{draft, committed, archived}`, enforced server-side in `entities/artifact.py`)
+2. Authored via the Palette — Prompts, Instructions, Context, and Input/Output panels invoke the configured LLM (e.g. your OpenAI key) and write the result back as draft artifacts the human can edit
+3. Reviewed in `CommitReviewDialog`, which surfaces every changed artifact, its target collection, provenance attribution, and any commit warnings
+4. **Explicit human commit** to a versioned collection — the `committed` state transition is the governance boundary
+5. On projection, this integration tags the JSON-LD `@type` (e.g. `agience:architecture-decision`) from the operator-supplied `--artifact-type` flag and evaluates `PolicyMappingRecord`
+6. Only then projected to DKG, with a `ProjectionReceipt` in the chain
 
 This directly answers the bounty's design principle of "human-in-the-loop is structural" rather than prompt-based.
 
@@ -66,7 +66,7 @@ When `policy_class = "internal-confidential"`, raw content stays FLARE-encrypted
 
 ### 4. Typed RDF Knowledge Assets
 
-Where `dkg-create` accepts generic JSON-LD, this integration writes typed `agience:` Knowledge Assets:
+Where `dkg-create` accepts generic JSON-LD, this integration writes typed `agience:` Knowledge Assets. The `@type` is supplied by the operator/agent through the CLI (`--artifact-type`) or MCP tool argument (`artifact_type`) and asserted by this integration when constructing the JSON-LD payload — it is not extracted from Agience's artifact entity, which has no native taxonomy beyond the `state` field:
 
 ```json
 {
@@ -96,6 +96,21 @@ Users have asked in the OriginTrail Telegram channel: *"how do I know what's bei
 - Every artifact is visible in the Agience UI **before** it reaches DKG
 - The receipt chain (`CommitReceipt` → `ProjectionReceipt` → `PublicationReceipt`) is auditable
 - Each `MemoryTurnResult` returns `status: "anchored"` or `status: "pending"` so callers can distinguish MCP transport success from blockchain anchoring state
+
+---
+
+## Complementarity with rc.6 on-chain author attestation
+
+DKG v10.0.0-rc.6 (10 May 2026) added cryptographic publisher attribution to canonical Knowledge Assets: every finalized KC now carries a `dkg:authoredBy` triple derived from an EIP-712 author attestation, with the recovered author address indexed in the `KCCreated` event topic (CHANGELOG entry for rc.6, lines 14–15).
+
+This composes cleanly with what this integration adds. The on-chain attestation answers *"which agent or wallet signed this publish?"*. This integration's `agience:commitReceiptId` predicate, threaded through `MemoryTurnRequest → DkgHttpClient.memory_turn` JSON-LD, answers *"which Agience commit, by which human, in which workspace, authorised this content to be projected at all?"*.
+
+Together they form a two-layer provenance chain on the canonical asset:
+
+- `dkg:authoredBy` — cryptographic publisher identity (DKG layer, EIP-712-signed)
+- `agience:commitReceiptId` → resolves to a `CommitReceipt` with actor, authority, artifact references (Agience layer, ArangoDB-backed, server-enforced via `check_access`)
+
+A reviewer can answer *"who, with what authority, decided this was fit for shared memory?"* without reading any prompt, prompt-template, or LLM trace — by reading two RDF predicates.
 
 ---
 

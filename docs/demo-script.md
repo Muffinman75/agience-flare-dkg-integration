@@ -34,7 +34,7 @@ Open the DESIGN_BRIEF.md and show the three-layer data flow diagram. Narrate:
 Show the key code files in Agience Core:
 
 ```bash
-# Show the DKG receipt schema (233 lines of Pydantic models)
+# Show the DKG receipt schema (165 lines of Pydantic models)
 head -60 ../agience-core/backend/api/dkg_integration.py
 
 # Show the policy mapping and projection validation
@@ -133,7 +133,7 @@ Narrate: "Any MCP-capable agent — Claude Desktop, Cursor, Claude Code — can 
 ## Scene 7: Run the full test suite
 
 ```bash
-# Unit tests (43 tests, no live node needed)
+# Unit tests (60 tests, no live node needed)
 pytest package/tests/unit -v
 
 # Integration tests (requires live DKG node)
@@ -143,9 +143,9 @@ DKG_CONTEXT_GRAPH=agience-test \
 pytest package/tests/integration -v
 ```
 
-Expected output: `43 passed` (unit) + `5 passed` (integration).
+Expected output: `60 passed` (unit) + `5 passed` (integration).
 
-Narrate: "43 unit tests cover the MCP server tool definitions and message routing, typed JSON-LD generation with the agience vocabulary, error status detection for blockchain failures, client operations, Pydantic models, and the formatter. 5 integration tests run end-to-end against the live DKG node."
+Narrate: "60 unit tests cover the MCP server tool definitions and message routing, typed JSON-LD generation with the agience vocabulary, error status detection for blockchain failures, client operations, Pydantic models, the formatter, the Agience client governance gate (only `committed` artifacts may be projected), and the governed CLI flow. 5 integration tests run end-to-end against the live DKG node."
 
 ---
 
@@ -171,7 +171,7 @@ Narrate: "FLARE provides the cryptographic confidentiality boundary. When an Agi
 - [ ] typed `agience:` JSON-LD vocabulary is shown and explained
 - [ ] `turn_uri` from wm-write is shown being passed to promote
 - [ ] blockchain anchoring state (`status: anchored` vs `pending`) is addressed
-- [ ] unit test run shows 43 passed
+- [ ] unit test run shows 60 passed
 - [ ] integration test run shows 5 passed
 - [ ] FLARE is referenced (test suite or paper)
 - [ ] no competitor submissions are mentioned

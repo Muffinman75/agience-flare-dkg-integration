@@ -36,7 +36,7 @@ The official `dkg mcp setup` makes MCP transport to DKG a commodity. This submis
 |---|---|---|
 | **MCP transport to DKG** | ✅ Two-command install for any MCP host | ✅ MCP stdio server (compatible, complementary) |
 | **Human-review commit boundary** | ❌ Direct `dkg-create` from any agent | ✅ Workspace → Collection commit gate; nothing reaches DKG without explicit approval |
-| **Typed artifact extraction** | ❌ Free-form payloads | ✅ Decision / claim / constraint / action unit artifacts with evidence quotes and source attribution |
+| **Structured commit review** | ❌ No review surface — every `dkg-create` lands directly | ✅ `CommitReviewDialog` shows every changed artifact, target collection, and provenance label before the human confirms (`@/agience-core/frontend/src/components/workspace/CommitReviewDialog.tsx`); `state ∈ {draft, committed, archived}` enforced server-side (`@/agience-core/backend/entities/artifact.py`) |
 | **Policy-controlled projection** | ❌ None | ✅ Five-dimension `PolicyMappingRecord` (policy class, promotion profile, export profile, retrieval profile, identity profile) evaluated before every write |
 | **Cryptographic confidentiality** | ❌ Plaintext only | ✅ FLARE AES-256-GCM cell-level encryption with Shamir K-of-M threshold oracle and Ed25519 signed grant ledger (101 tests) |
 | **Typed RDF vocabulary** | ❌ Generic JSON-LD | ✅ `agience:` namespace with 8+ SPARQL-queryable predicates (`agience:author`, `agience:tags`, `agience:collection`, `agience:memoryLayer`, `agience:artifactId`, `agience:contextGraphId`, `agience:subGraphName`, `schema:isPartOf`) |
@@ -54,7 +54,7 @@ This is not a CLI wrapper around a DKG API endpoint. DKG awareness is embedded a
 
 The Agience Core platform has been extended with native DKG receipt and policy models:
 
-**Receipt schema** (`backend/api/dkg_integration.py`, 233 lines) — seven structured receipt types track every stage of the artifact-to-DKG lifecycle:
+**Receipt schema** (`backend/api/dkg_integration.py`, 165 lines) — seven structured receipt types track every stage of the artifact-to-DKG lifecycle:
 
 | Receipt type | Purpose |
 |---|---|

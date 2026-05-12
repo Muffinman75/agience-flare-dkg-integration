@@ -59,7 +59,7 @@ def test_governed_mode_projects_committed_artifact(monkeypatch):
     """
 
     def agience_handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/api/artifacts/art-001"
+        assert request.url.path == "/artifacts/art-001"
         return httpx.Response(
             200,
             json={

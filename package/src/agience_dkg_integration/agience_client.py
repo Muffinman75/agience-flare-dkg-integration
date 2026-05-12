@@ -16,7 +16,7 @@ Environment variables:
     AGIENCE_TOKEN             Bearer token for the Agience API. Optional —
                               omit for unauthenticated dev instances.
     AGIENCE_ARTIFACT_ENDPOINT Path template for fetching an artifact
-                              (default `/api/artifacts/{artifact_id}`).
+                              (default `/artifacts/{artifact_id}`).
                               `{artifact_id}` is replaced with the id.
 """
 
@@ -91,7 +91,7 @@ class AgienceClient:
         )).rstrip("/")
         self._bearer_token = bearer_token or os.environ.get("AGIENCE_TOKEN", "")
         self.artifact_endpoint = artifact_endpoint or os.environ.get(
-            "AGIENCE_ARTIFACT_ENDPOINT", "/api/artifacts/{artifact_id}"
+            "AGIENCE_ARTIFACT_ENDPOINT", "/artifacts/{artifact_id}"
         )
         self._timeout = timeout
 
