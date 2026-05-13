@@ -16,6 +16,10 @@ import os
 import sys
 from typing import Any, Dict, Sequence
 
+from ._env import load_env
+
+load_env()
+
 from .agience_client import (
     AgienceClient,
     AgienceClientError,

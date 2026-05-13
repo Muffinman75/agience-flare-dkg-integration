@@ -4,6 +4,10 @@ import os
 
 import typer
 
+from ._env import load_env
+
+load_env()
+
 from .agience_client import (
     AgienceClient,
     AgienceClientError,
