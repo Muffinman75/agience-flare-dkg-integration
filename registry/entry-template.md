@@ -17,8 +17,8 @@ Before filing the PR, fill in the two `TODO` values below (commit SHA and PyPI v
 - **Primary interface:** DKG v10 MCP Streamable HTTP (`POST /mcp`) — `dkg-create` and `dkg-sparql-query` tools
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
-- **Package version:** `0.2.0` — TODO: confirm after PyPI publish
-- **Pinned commit SHA:** `2e3dfa5` (tag `v0.1.1`)
+- **Package version:** `0.3.0`
+- **Pinned commit SHA:** TODO — set to the `v0.3.0` release commit SHA after GitHub Actions publishes (will be `git rev-parse v0.3.0`)
 - **License:** MIT
 - **SPDX:** `MIT`
 - **Maintainer:** Manoj Modhwadia — manojmodhwadia@outlook.com — [@Muffinman75](https://github.com/Muffinman75)

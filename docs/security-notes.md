@@ -5,9 +5,10 @@
 All credentials are read from environment variables — never hardcoded or logged.
 
 - `DKG_TOKEN` — bearer token for the DKG v10 node HTTP API
-- `DKG_BASE_URL` — base URL for the DKG node (default: `http://localhost:8081`)
+- `DKG_BASE_URL` — base URL for the DKG node (default: `http://localhost:8083` when running alongside Agience backend on `8081`)
+- `AGIENCE_TOKEN` — Agience scoped API key (`agc_...`), only required when using `--from-agience-artifact` to fetch governed artifacts before projection
 
-No Agience platform credentials are required by this package. FLARE service credentials are only used when `retrieval_profile = protected-search` is explicitly configured by the operator — this mode is not enabled by default.
+No Agience platform credentials are required for direct CLI writes (`wm-write` with explicit `--content`). They are only needed when fetching committed artifacts from the Agience governance layer. FLARE service credentials are only used when `retrieval_profile = protected-search` is explicitly configured by the operator — this mode is not enabled by default.
 
 ## Agience Core policy model
 
@@ -73,6 +74,6 @@ This package:
 
 - No `postinstall` or `preinstall` scripts
 - MIT license, SPDX identifier `MIT`
-- `pip audit --production` clean
-- Dependencies pinned with lower bounds only (`httpx>=0.27`, `pydantic>=2.0,<3`, `typer>=0.12,<1`) for compatibility
-- Published to PyPI as `agience-flare-dkg-integration==0.1.1` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`)
+- `pip-audit -r requirements-audit.txt` clean against direct dependencies (`httpx`, `pydantic`, `typer`, `python-dotenv`) — no known vulnerabilities as of 2026-05-13. CVEs reported in indirect deps of `pip-audit` itself (`authlib`, `urllib3`, `pytest`, `python-multipart`) are not transitive from this package.
+- Dependencies pinned with lower bounds only (`httpx>=0.27`, `pydantic>=2.0,<3`, `typer>=0.12,<1`, `python-dotenv>=1.0`) for compatibility
+- Published to PyPI as `agience-flare-dkg-integration==0.3.0` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`)
