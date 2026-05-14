@@ -26,6 +26,8 @@ This submission bridges three systems at the architectural level to provide both
 
 **Why this matters now.** As of 7 May 2026, OriginTrail shipped `dkg mcp setup` — a two-command path that wires any MCP-compatible client (Cursor, Claude Desktop, Claude Code, Cline, Codex, Windsurf, VS Code Copilot Chat) to DKG Working Memory. That's the new floor, and it solves *transport*. It does not solve *governance*: there is no human-review commit boundary, no policy-controlled projection, no cryptographic confidentiality boundary, and no typed RDF vocabulary above raw `dkg-create` calls. This integration delivers exactly that upstream governance, so what reaches the shared substrate is signal, not noise. The head-to-head comparison is in §2 below and in [`docs/vs-dkg-mcp-setup.md`](docs/vs-dkg-mcp-setup.md).
 
+**Positioning.** Where most Round 1 examples are single-tool plugins (ChatGPT/Claude, Slack, GitHub, Obsidian, OpenClaude/Hermes adapters), this submission is **platform-level and complementary** to all of them. Any of those plugins can write into a governed Agience workspace; this integration then governs which artifacts reach DKG Working Memory and Shared Memory, with what typing, and under whose authority.
+
 ---
 
 ## 2. Why This Is a Flagship-Level Submission
@@ -124,6 +126,8 @@ An agent in Claude Desktop can call Agience tools to curate knowledge, call DKG 
 ---
 
 ## 5. Memory Layers Touched
+
+> **Plain-language framing.** Working Memory is the agent's private notebook — a fast, private scratchpad that survives node restart and is only visible to its owner. Shared Memory is the team whiteboard — gossip-propagated across nodes in the same Context Graph, visible to participants, but not yet anchored on-chain. Verified Memory (Round 2) is the on-chain trustable layer. This integration governs what enters each tier and under whose authority.
 
 | Layer | Role in this integration |
 |---|---|
