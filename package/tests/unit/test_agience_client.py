@@ -155,8 +155,9 @@ def test_401_surfaces_auth_failure(patched_httpx):
     assert "AGIENCE_TOKEN" in str(excinfo.value)
 
 
-def test_no_token_means_no_auth_header(patched_httpx):
+def test_no_token_means_no_auth_header(patched_httpx, monkeypatch):
     """When no token is configured, no Authorization header is sent."""
+    monkeypatch.delenv("AGIENCE_TOKEN", raising=False)
     received_headers: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
