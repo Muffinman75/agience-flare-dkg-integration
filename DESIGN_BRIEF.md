@@ -26,7 +26,7 @@ This submission bridges three systems at the architectural level to provide both
 
 **Why this matters now.** As of 7 May 2026, OriginTrail shipped `dkg mcp setup` — a two-command path that wires any MCP-compatible client (Cursor, Claude Desktop, Claude Code, Cline, Codex, Windsurf, VS Code Copilot Chat) to DKG Working Memory. That's the new floor, and it solves *transport*. It does not solve *governance*: there is no human-review commit boundary, no policy-controlled projection, no cryptographic confidentiality boundary, and no typed RDF vocabulary above raw `dkg-create` calls. This integration delivers exactly that upstream governance, so what reaches the shared substrate is signal, not noise. The head-to-head comparison is in §2 below and in [`docs/vs-dkg-mcp-setup.md`](docs/vs-dkg-mcp-setup.md).
 
-**Positioning.** Where most Round 1 examples are single-tool plugins (ChatGPT/Claude, Slack, GitHub, Obsidian, OpenClaude/Hermes adapters), this submission is **platform-level and complementary** to all of them. Any of those plugins can write into a governed Agience workspace; this integration then governs which artifacts reach DKG Working Memory and Shared Memory, with what typing, and under whose authority.
+**Positioning.** This submission is **platform-level and complementary** to single-tool integrations. A ChatGPT, Claude, Slack, GitHub, or Obsidian client can write into a governed Agience workspace; this integration then governs which artifacts reach DKG Working Memory and Shared Memory, with what typing, and under whose authority. The intent is to strengthen the ecosystem alongside other Round 1 entries, not to overlap with them.
 
 ---
 
