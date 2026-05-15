@@ -2,7 +2,7 @@
 
 This file is the source for the PR against [`OriginTrail/dkg-integrations`](https://github.com/OriginTrail/dkg-integrations).
 
-Before filing the PR, fill in the two `TODO` values below (commit SHA and PyPI version after first publish).
+Filed as PR against [`OriginTrail/dkg-integrations`](https://github.com/OriginTrail/dkg-integrations).
 
 ---
 
@@ -18,7 +18,7 @@ Before filing the PR, fill in the two `TODO` values below (commit SHA and PyPI v
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
 - **Package version:** `0.3.0`
-- **Pinned commit SHA:** TODO — `5eb7e653dd48efd0c6ce8f7325c4a02285f51d1f`
+- **Pinned commit SHA:** `09bf331ae13b9ba1ddbec07957e49e0bce358a92`
 - **License:** MIT
 - **SPDX:** `MIT`
 - **Maintainer:** Manoj Modhwadia — manojmodhwadia@outlook.com — [@Muffinman75](https://github.com/Muffinman75)
