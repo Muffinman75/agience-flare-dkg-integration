@@ -1,0 +1,41 @@
+name: Publish npm wrapper
+
+# Publishes the thin npm wrapper (`agience-flare-dkg-integration` on the npm
+# registry) on tag push. Triggers in parallel with the PyPI publish workflow;
+# both consume the same `v*.*.*` tag so the wrapper version always tracks the
+# Python package version.
+#
+# Requires repository secret NPM_TOKEN with `automation` (or classic-publish)
+# scope. Provenance is requested via `npm publish --provenance` which the
+# GitHub Actions runner attests automatically when id-token: write is granted.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Sanity check tarball contents
+        working-directory: npm-wrapper
+        run: npm pack --dry-run
+
+      - name: Publish to npm with provenance
+        working-directory: npm-wrapper
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

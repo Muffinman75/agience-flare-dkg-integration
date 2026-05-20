@@ -129,6 +129,21 @@ Two consequences that matter to the DKG:
 
 This is why the integration positions as **platform-level**: it is not bridging one tool's output into DKG, it is bridging an entire governed authoring substrate — including the agents, credentials, and authority relationships that produced each artifact.
 
+### Positioning relative to other Round-1 integrations
+
+The strongest reading of Round 1 is that the registry will end up with **a stack of complementary integrations at different points in the substrate**, not a single winner. This integration is intentionally upstack from — not a competitor to — the well-scoped single-tool and single-flow integrations that the bounty doc explicitly invites. A useful way to read where each lands:
+
+| Layer | Example integrations | What they connect |
+|---|---|---|
+| **Single-tool ingestion** | Obsidian → DKG plugin, ChatGPT / Claude / Slack / GitHub plugins | One tool's content stream → Working Memory or Shared Memory |
+| **Agent-workspace bridges** | OpenClaw / Hermes file-ingestion adapters (e.g. workspace-artifact bridges) | One agent's local workspace files → Working Memory with provenance + status tags |
+| **Coding-assistant transport** | `cursor-mcp-dkg` (first-party) | Exposes the local DKG node as an MCP server to Cursor / Claude Code / Claude Desktop |
+| **Governance substrate (this integration)** | Agience FLARE × DKG v10 | A multi-tenant typed-artifact platform with `Authority`/`Authorizer` identity, commit-gated projection, and FLARE confidential retrieval — projects only committed artifacts as typed `agience:` Knowledge Assets, with `commit_receipt_id` traceability back to the governed instance |
+
+These layers compose: a researcher can write notes in Obsidian, draft inside ChatGPT, code inside Cursor, run agent loops in OpenClaw — and have any of that flow through a governed Agience workspace before any of it reaches a Shared-Memory artifact that other agents will see and reason over. The substrate question (**who is authorised to project this? under what receipt? bound to which identity graph?**) is orthogonal to the *source* of the content, which is why a governance layer earns its place alongside ingestion-style integrations rather than replacing them.
+
+For the same reason, the integration does **not** try to be an OpenClaw plugin, a Slack bot, or a vault syncer. Anything that already projects content into DKG Working Memory can — if the operator chooses — instead route through an Agience workspace first, picking up typed `Authority` provenance and the `commit_receipt_id` chain on the way to DKG.
+
 ---
 
 ## 4. Target Users

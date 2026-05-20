@@ -1,0 +1,43 @@
+{
+  "name": "agience-flare-dkg-integration",
+  "version": "0.3.0",
+  "description": "npm wrapper for the Agience FLARE \u00d7 DKG v10 Integration. Governance layer above DKG v10: commit-gated Agience artifacts \u2192 typed agience: RDF Knowledge Assets in Working Memory and Shared Memory via MCP Streamable HTTP. Wrapper delegates to the Python CLI (agience-dkg) shipped on PyPI as agience-flare-dkg-integration.",
+  "keywords": [
+    "origintrail",
+    "dkg",
+    "dkg-v10",
+    "working-memory",
+    "shared-memory",
+    "agience",
+    "flare",
+    "mcp",
+    "knowledge-graph",
+    "governance"
+  ],
+  "license": "MIT",
+  "author": "Manoj Modhwadia <manojmodhwadia@outlook.com>",
+  "homepage": "https://github.com/Muffinman75/agience-flare-dkg-integration#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Muffinman75/agience-flare-dkg-integration.git",
+    "directory": "npm-wrapper"
+  },
+  "bugs": {
+    "url": "https://github.com/Muffinman75/agience-flare-dkg-integration/issues"
+  },
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "agience-dkg": "bin/agience-dkg.js"
+  },
+  "files": [
+    "bin/",
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {}
+}
