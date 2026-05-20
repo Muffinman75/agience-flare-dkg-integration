@@ -17,7 +17,7 @@ Filed as PR against [`OriginTrail/dkg-integrations`](https://github.com/OriginTr
 - **Primary interface:** DKG v10 MCP Streamable HTTP (`POST /mcp`) — `dkg-create` and `dkg-sparql-query` tools
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
-- **Package version:** `0.3.0`
+- **Package version:** `0.3.1`
 - **Pinned commit SHA:** `9f4a095b94bfdf1a9e7d1b46ed0cc0e8a1c8165f`
 - **License:** MIT
 - **SPDX:** `MIT`
