@@ -112,6 +112,23 @@ FLARE provides **cryptographically enforced access control** on the retrieval pa
 
 An agent in Claude Desktop can call Agience tools to curate knowledge, call DKG tools to write/search memory, and the policy layer decides what content flows where — all via MCP.
 
+### Typed-artifact substrate (the "card" system)
+
+Agience is not a notes app with a publish button. Its authoring surface is a typed artifact catalogue — every object a workspace produces is a first-class typed card with its own JSON content type:
+
+![Agience card-creation surface — agent-platform artifact types](docs/img/agience-card-types-1.png)
+
+![Agience card-creation surface — content & infrastructure artifact types](docs/img/agience-card-types-2.png)
+
+Beyond conventional content types (`Markdown`, `Plain Text`, `JSON`, `Resource`, `Transform`, `View`), the catalogue includes **agent-platform primitives** that no notes-to-DKG plugin reaches: `Agent`, `Agency`, `Authority`, `Authorizer`, `Account`, `Person`, `Invite`, `Collection`, `LLM Connection`, `MCP Server`, `MCP Client`, `Server Credential`, `Stream Source`, `Tool`, `Workspace`, `Host`, `Key`, `Chat`, `Invoice`, `Package`. Each card is governance-aware: it carries the `Authority`/`Authorizer` graph that decides who can commit it, and only `committed` cards are eligible for projection into DKG Working Memory.
+
+Two consequences that matter to the DKG:
+
+1. **The provenance receipt is richer than "user X published markdown Y."** A projected Knowledge Asset can carry `agience:author` (a typed `Person` artifact), `agience:authority` (a typed `Authority` artifact), `agience:source-collection`, and the `commit_receipt_id` linking back to the governed instance — all stable references, not free-text fields.
+2. **The substrate is multi-tenant by construction.** `Agency`, `Authority`, `Authorizer`, and `Invite` are first-class artifacts, so Curator-authorized SHARE operations into Shared Memory map onto an explicit, queryable identity graph rather than an implicit "whoever has the API key."
+
+This is why the integration positions as **platform-level**: it is not bridging one tool's output into DKG, it is bridging an entire governed authoring substrate — including the agents, credentials, and authority relationships that produced each artifact.
+
 ---
 
 ## 4. Target Users
