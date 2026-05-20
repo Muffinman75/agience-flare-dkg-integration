@@ -144,6 +144,38 @@ These layers compose: a researcher can write notes in Obsidian, draft inside Cha
 
 For the same reason, the integration does **not** try to be an OpenClaw plugin, a Slack bot, or a vault syncer. Anything that already projects content into DKG Working Memory can — if the operator chooses — instead route through an Agience workspace first, picking up typed `Authority` provenance and the `commit_receipt_id` chain on the way to DKG.
 
+### Convergent design: ARA, Cleo, and the commit-receipt primitive
+
+A pattern emerged in the OriginTrail Red-Team Telegram channel during Round-1 community discussion that is worth naming explicitly, because it is the strongest available evidence that the **commit-receipt-at-the-WM→SWM-gate** primitive is the right substrate-level abstraction — not an Agience-specific quirk.
+
+Three independent implementations of effectively the same primitive surfaced in the channel within a 24-hour window:
+
+| Implementation | Origin | Shape |
+|---|---|---|
+| **Cleo (Obsidian AI-OS)** | [@Tcharly G](https://t.me/AgienceAI), Red-Team TG, 20 May 2026 | A dedicated curator agent ("intake gatekeeper") that scores incoming agent deposits across five axes (credibility, confidence, contradictions, bias, relevance), routing only approved content into the knowledge base |
+| **`rigor-reviewer` skill (ARA)** | [Liu et al., *The Last Human-Written Paper: Agent-Native Research Artifacts*, arXiv:2604.24658](https://arxiv.org/abs/2604.24658) — author list includes Alex Pentland (MIT), CMU, Stanford, UMich | Six-dimension semantic review (Evidence Relevance, Falsifiability Quality, Scope Calibration, Argument Coherence, Exploration Integrity, Methodological Rigor), each scored 1–5 with severity-ranked findings, producing a `level2_report.json` review record. Their "Seal Level 1" = structural commit; "Seal Level 2" = semantic commit |
+| **Commit-receipt (this integration)** | Agience platform | A typed `agience:CommitReceipt` artifact emitted at the governance gate, carrying typed `Authority` references, curator identity, and timestamp, attached to the projected Knowledge Asset as `agience:commitReceipt` provenance metadata |
+
+All three are doing structurally identical work: **a curator (human, agent, or policy-driven) evaluates a draft against multiple axes, and the evaluation outcome itself becomes a queryable artifact that travels with the draft into the shared layer.** The five-axis Cleo review, the six-dimension ARA Seal, and the Agience commit-receipt are different concrete instantiations of the same primitive.
+
+Two consequences for this integration:
+
+1. **The receipt shape is community-emergent, not Agience-proprietary.** What Agience contributes is the typed-authority substrate (`Authority` / `Authorizer` / `Person` as first-class artifacts) that gives the receipt a stable identity graph to attach to, rather than a free-text "approved by username". A Cleo review record, an ARA `level2_report.json`, and an Agience commit-receipt are interchangeable JSON-LD payloads if their referenced curator identities resolve to typed `agience:Person` or `agience:Authority` artifacts. This integration should be a *substrate* for community curator schemas, not a competitor to them.
+
+2. **The ARA paper anchors the academic foundation.** Round-1 reviewers and forward Round-2 collaborators get a peer-reviewable reference frame for what the gate is doing — *agent-native research artifact governance*, with citations into the AI/MIT research community. The integration's `agience:CommitReceipt` shape is designed so an ARA `level2_report.json` (or a Cleo review record) can ride along on the SHARE call as the receipt payload without reshaping.
+
+The half-joke version is: **DKG without governance at the gate is a fast database with extra steps; governance at the gate without typed identity is just markup; typed identity without a community-portable receipt schema is a single-vendor walled garden.** The convergence above is what stops Round-1 governance work from becoming any of those three.
+
+### Retrieval philosophy: SPARQL over typed RDF, not embedding-based RAG
+
+A note on retrieval, because it matters for compatibility with the philosophy of the indie-AI-builder community this integration intersects (e.g. Daniel Miessler's Personal AI Infrastructure (PAI), which is explicit about *"filesystem as context, no RAG"*).
+
+This integration's read path is **SPARQL queries over a typed RDF Context Graph**, not similarity search over a vector embedding index. A query like *"all decisions authored by Person X in Collection Y after timestamp Z"* is a typed, deterministic graph traversal — closer in spirit to `ripgrep` over structured text than to embedding similarity. The retrieval is exact, explainable, and reproduces identically across nodes; there is no embedding model to drift, no cosine-similarity threshold to tune, and no retrieval flakiness to debug.
+
+The optional FLARE confidentiality path uses an IVF vector index over encrypted cells *for confidential semantic retrieval over private content*, but that is an opt-in capability behind cryptographic access control — not a default RAG layer over Working/Shared Memory. The default DKG-side read path remains typed SPARQL.
+
+Operators who hold strong opinions against RAG-style retrieval (PAI, ARA, and the broader text-over-opaque-storage tradition) can adopt this integration without compromising those opinions: the substrate underneath is a typed graph they can read with `dkg-sparql-query`, and the receipt and authority artifacts are themselves structured RDF, not opaque blobs.
+
 ---
 
 ## 4. Target Users
