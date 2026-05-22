@@ -38,9 +38,19 @@ DKG v10 provides the shared memory substrate. But what gets written there matter
 
 ## Install
 
+One-line install (recommended — installs the `agience-dkg` CLI globally in an isolated venv):
+
 ```bash
-pip install agience-flare-dkg-integration
+pipx install agience-flare-dkg-integration
 ```
+
+Or via pip:
+
+```bash
+python -m pip install --user agience-flare-dkg-integration
+```
+
+> An npm wrapper of the same name is also published for ecosystem familiarity; see [`npm-wrapper/README.md`](npm-wrapper/README.md). The wrapper delegates to the Python CLI above — `pipx` is the canonical one-line install.
 
 ## MCP Server (for Claude Desktop, Cursor, etc.)
 
@@ -145,7 +155,7 @@ LICENSE                 MIT
 
 | Suite | Count | Requires DKG node |
 |---|---|---|
-| Integration package unit tests | 43 | No |
+| Integration package unit tests | 60 | No |
 | Integration package integration tests | 5 | Yes |
 | Agience Core DKG service tests | 6 | No |
 | FLARE test suite | 101 | No (Docker only) |

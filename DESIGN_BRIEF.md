@@ -127,7 +127,7 @@ Two consequences that matter to the DKG:
 1. **The provenance receipt is richer than "user X published markdown Y."** A projected Knowledge Asset can carry `agience:author` (a typed `Person` artifact), `agience:authority` (a typed `Authority` artifact), `agience:source-collection`, and the `commit_receipt_id` linking back to the governed instance — all stable references, not free-text fields.
 2. **The substrate is multi-tenant by construction.** `Agency`, `Authority`, `Authorizer`, and `Invite` are first-class artifacts, so Curator-authorized SHARE operations into Shared Memory map onto an explicit, queryable identity graph rather than an implicit "whoever has the API key."
 
-This is why the integration positions as **platform-level**: it is not bridging one tool's output into DKG, it is bridging an entire governed authoring substrate — including the agents, credentials, and authority relationships that produced each artifact.
+This is why the integration positions as **platform-level**: it is not bridging one tool's output into DKG, it is bridging an entire governed authoring substrate — including the agents, credentials, and authority relationships that produced each artifact. The receipt shape is intentionally portable: any community curator-review JSON-LD payload can ride the SHARE call as the receipt body, provided its curator identity resolves to a typed `agience:Person` or `agience:Authority` artifact rather than a free-text approver field.
 
 ### Positioning relative to other Round-1 integrations
 
@@ -143,28 +143,6 @@ The strongest reading of Round 1 is that the registry will end up with **a stack
 These layers compose: a researcher can write notes in Obsidian, draft inside ChatGPT, code inside Cursor, run agent loops in OpenClaw — and have any of that flow through a governed Agience workspace before any of it reaches a Shared-Memory artifact that other agents will see and reason over. The substrate question (**who is authorised to project this? under what receipt? bound to which identity graph?**) is orthogonal to the *source* of the content, which is why a governance layer earns its place alongside ingestion-style integrations rather than replacing them.
 
 For the same reason, the integration does **not** try to be an OpenClaw plugin, a Slack bot, or a vault syncer. Anything that already projects content into DKG Working Memory can — if the operator chooses — instead route through an Agience workspace first, picking up typed `Authority` provenance and the `commit_receipt_id` chain on the way to DKG.
-
-### Convergent design: ARA, Cleo, and the commit-receipt primitive
-
-A pattern emerged in the OriginTrail Red-Team Telegram channel during Round-1 community discussion that is worth naming explicitly, because it is the strongest available evidence that the **commit-receipt-at-the-WM→SWM-gate** primitive is the right substrate-level abstraction — not an Agience-specific quirk.
-
-Three independent implementations of effectively the same primitive surfaced in the channel within a 24-hour window:
-
-| Implementation | Origin | Shape |
-|---|---|---|
-| **Cleo (Obsidian AI-OS)** | [@Tcharly G](https://t.me/AgienceAI), Red-Team TG, 20 May 2026 | A dedicated curator agent ("intake gatekeeper") that scores incoming agent deposits across five axes (credibility, confidence, contradictions, bias, relevance), routing only approved content into the knowledge base |
-| **`rigor-reviewer` skill (ARA)** | [Liu et al., *The Last Human-Written Paper: Agent-Native Research Artifacts*, arXiv:2604.24658](https://arxiv.org/abs/2604.24658) — author list includes Alex Pentland (MIT), CMU, Stanford, UMich | Six-dimension semantic review (Evidence Relevance, Falsifiability Quality, Scope Calibration, Argument Coherence, Exploration Integrity, Methodological Rigor), each scored 1–5 with severity-ranked findings, producing a `level2_report.json` review record. Their "Seal Level 1" = structural commit; "Seal Level 2" = semantic commit |
-| **Commit-receipt (this integration)** | Agience platform | A typed `agience:CommitReceipt` artifact emitted at the governance gate, carrying typed `Authority` references, curator identity, and timestamp, attached to the projected Knowledge Asset as `agience:commitReceipt` provenance metadata |
-
-All three are doing structurally identical work: **a curator (human, agent, or policy-driven) evaluates a draft against multiple axes, and the evaluation outcome itself becomes a queryable artifact that travels with the draft into the shared layer.** The five-axis Cleo review, the six-dimension ARA Seal, and the Agience commit-receipt are different concrete instantiations of the same primitive.
-
-Two consequences for this integration:
-
-1. **The receipt shape is community-emergent, not Agience-proprietary.** What Agience contributes is the typed-authority substrate (`Authority` / `Authorizer` / `Person` as first-class artifacts) that gives the receipt a stable identity graph to attach to, rather than a free-text "approved by username". A Cleo review record, an ARA `level2_report.json`, and an Agience commit-receipt are interchangeable JSON-LD payloads if their referenced curator identities resolve to typed `agience:Person` or `agience:Authority` artifacts. This integration should be a *substrate* for community curator schemas, not a competitor to them.
-
-2. **The ARA paper anchors the academic foundation.** Round-1 reviewers and forward Round-2 collaborators get a peer-reviewable reference frame for what the gate is doing — *agent-native research artifact governance*, with citations into the AI/MIT research community. The integration's `agience:CommitReceipt` shape is designed so an ARA `level2_report.json` (or a Cleo review record) can ride along on the SHARE call as the receipt payload without reshaping.
-
-The half-joke version is: **DKG without governance at the gate is a fast database with extra steps; governance at the gate without typed identity is just markup; typed identity without a community-portable receipt schema is a single-vendor walled garden.** The convergence above is what stops Round-1 governance work from becoming any of those three.
 
 ### Retrieval philosophy: SPARQL over typed RDF, not embedding-based RAG
 
