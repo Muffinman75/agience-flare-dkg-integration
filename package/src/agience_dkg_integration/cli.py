@@ -14,30 +14,69 @@ from .agience_client import (
     ArtifactNotCommittedError,
 )
 from .client import DkgHttpClient
+from .daemon_client import DkgDaemonClient
 from .formatter import artifact_to_markdown, session_uri_for_collection
 from .models import AssertionPromoteRequest, MemorySearchRequest, MemoryTurnRequest
 
+DkgClient = DkgHttpClient | DkgDaemonClient
+
 app = typer.Typer(
     help=(
-        "agience-dkg \u2014 the governance layer above DKG v10's MCP transport.\n\n"
+        "agience-dkg \u2014 the governance layer above the OriginTrail DKG v10 daemon.\n\n"
         "Bridges committed Agience artifacts into DKG Working Memory and Shared Memory "
         "as typed `agience:` RDF Knowledge Assets, with policy-aware projection and "
-        "provenance receipts. Where `dkg mcp setup` solves transport, this solves "
-        "governance: human-review commit boundaries, typed artifact metadata, and "
-        "Curator-authorized SHARE.\n\n"
-        "Credentials are read from DKG_BASE_URL and DKG_TOKEN environment variables "
-        "or passed explicitly via --base-url / --token."
+        "provenance receipts. Speaks two supported v10 public interfaces \u2014 the "
+        "local daemon HTTP API (default, canonical) and MCP Streamable HTTP "
+        "(for nodes fronted by `dkg mcp setup`).\n\n"
+        "Defaults: --transport=daemon, --base-url=http://127.0.0.1:9201, "
+        "daemon bearer token auto-read from ~/.dkg/auth.token. "
+        "Override any of these with flags, DKG_TRANSPORT, DKG_BASE_URL, or DKG_DAEMON_TOKEN."
     )
 )
 
 
-def _client(base_url: str | None, token: str | None) -> DkgHttpClient:
-    url = base_url or os.environ.get("DKG_BASE_URL", "http://localhost:8081")
+def _client(
+    base_url: str | None,
+    token: str | None,
+    transport: str | None = None,
+) -> DkgClient:
+    """Build a transport-appropriate DKG client.
+
+    Two transports are supported (both are stable DKG v10 public interfaces
+    per bounty § 5):
+
+    * ``daemon`` **(default)**: talks directly to the official OriginTrail
+      DKG v10 daemon's HTTP API (``http://127.0.0.1:9201`` by default).
+      Reads the bearer token from explicit ``--token`` →
+      ``DKG_DAEMON_TOKEN`` → ``~/.dkg/auth.token`` → ``DKG_TOKEN``.
+      WM writes do not require an on-chain publish; the daemon stores
+      assertions locally until ``promote`` is called.
+    * ``mcp``: talks to a DKG node's ``POST /mcp`` endpoint via MCP
+      Streamable HTTP. Used for MCP-fronted nodes (e.g. those configured
+      via ``dkg mcp setup``). Requires DKG_TOKEN.
+    """
+    chosen = (transport or os.environ.get("DKG_TRANSPORT") or "daemon").lower()
+    url = base_url or os.environ.get("DKG_BASE_URL")
+
+    if chosen == "daemon":
+        # The daemon transport never accepts DKG_TOKEN as a fallback inside
+        # this helper because deployments commonly pin DKG_TOKEN to an MCP-
+        # flavour token that the local daemon will reject. DkgDaemonClient
+        # itself walks DKG_DAEMON_TOKEN -> ~/.dkg/auth.token -> DKG_TOKEN.
+        return DkgDaemonClient(
+            base_url=url or "http://127.0.0.1:9201",
+            bearer_token=token or None,
+        )
+
     tok = token or os.environ.get("DKG_TOKEN", "")
     if not tok:
-        typer.echo("Error: DKG bearer token required. Set DKG_TOKEN or pass --token.", err=True)
+        typer.echo(
+            "Error: DKG bearer token required for MCP transport. "
+            "Set DKG_TOKEN, pass --token, or switch to --transport daemon.",
+            err=True,
+        )
         raise typer.Exit(1)
-    return DkgHttpClient(base_url=url, bearer_token=tok)
+    return DkgHttpClient(base_url=url or "http://localhost:8083", bearer_token=tok)
 
 
 @app.command("wm-write")
@@ -67,6 +106,15 @@ def wm_write(
     token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
     agience_base_url: str = typer.Option("", help="Agience backend URL (overrides AGIENCE_BASE_URL)"),
     agience_token: str = typer.Option("", help="Agience bearer token (overrides AGIENCE_TOKEN)"),
+    transport: str = typer.Option(
+        "",
+        "--transport",
+        help=(
+            "DKG transport: 'daemon' (default \u2014 direct HTTP to a local "
+            "OriginTrail DKG v10 daemon) or 'mcp' (via the /mcp endpoint, "
+            "for nodes fronted by `dkg mcp setup`). Override via DKG_TRANSPORT."
+        ),
+    ),
 ) -> None:
     """Write a governed Agience artifact as a typed `agience:` Knowledge Asset.
 
@@ -119,7 +167,7 @@ def wm_write(
         typer.echo(f"Error: missing required option(s): {', '.join(missing)}{hint}", err=True)
         raise typer.Exit(1)
 
-    client = _client(base_url or None, token or None)
+    client = _client(base_url or None, token or None, transport or None)
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
     markdown = artifact_to_markdown(
         title=title,
@@ -154,6 +202,7 @@ def promote(
     context_graph_id: str = typer.Option(..., help="DKG Context Graph ID"),
     base_url: str = typer.Option("", help="DKG node base URL (overrides DKG_BASE_URL)"),
     token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
+    transport: str = typer.Option("", "--transport", help="'daemon' (default) or 'mcp'. Overridable via DKG_TRANSPORT."),
 ) -> None:
     """Promote a Working Memory Knowledge Asset to Shared Memory (Curator-authorized SHARE).
 
@@ -161,7 +210,7 @@ def promote(
     by the Agience `PolicyMappingRecord.promotion_profile` (must be `swm-eligible`
     or `vm-eligible`). Preserves the UAL chain for Round 2 Verified Memory.
     """
-    client = _client(base_url or None, token or None)
+    client = _client(base_url or None, token or None, transport or None)
     name = turn_uri.split("/")[-1]
     request = AssertionPromoteRequest(
         name=name,
@@ -179,13 +228,14 @@ def search(
     layers: str = typer.Option("", help="Comma-separated memory layers to search (e.g. wm,swm)"),
     base_url: str = typer.Option("", help="DKG node base URL (overrides DKG_BASE_URL)"),
     token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
+    transport: str = typer.Option("", "--transport", help="'daemon' (default) or 'mcp'. Overridable via DKG_TRANSPORT."),
 ) -> None:
     """Search Working / Shared Memory via SPARQL using `agience:` predicates.
 
     Filterable by memory layer, artifact type, author, collection, and sessionUri.
     Read-only. Scoped to the supplied Context Graph.
     """
-    client = _client(base_url or None, token or None)
+    client = _client(base_url or None, token or None, transport or None)
     layer_list = [l.strip() for l in layers.split(",") if l.strip()] if layers else None
     request = MemorySearchRequest(
         contextGraphId=context_graph_id,

@@ -75,26 +75,48 @@ This exposes three tools: `agience_wm_write`, `agience_promote`, `agience_search
 ## CLI Quick start
 
 ```bash
-export DKG_BASE_URL=http://localhost:8081
-export DKG_TOKEN=your-bearer-token
+# 1) Install the official DKG v10 daemon (one-time)
+npm install -g @origintrail-official/dkg
+dkg init                       # writes ~/.dkg/auth.token
+DKG_PORT=9201 dkg start        # 9201 avoids the Windows Elasticsearch :9200 collision
 
-# Write an artifact to Working Memory
+# 2) Copy the env template and edit (sane daemon defaults are already in there)
+cp integration/package/.env.example integration/package/.env
+
+# 3) Write a Knowledge Asset to Working Memory
 agience-dkg wm-write \
   --title "Architecture Decision: use DKG v10" \
-  --artifact-type decision \
+  --artifact-type Decision \
   --artifact-id art-001 \
   --content "We will use DKG v10 Working Memory as the shared knowledge substrate." \
-  --context-graph-id <your-context-graph-id> \
+  --context-graph-id agience-demo \
   --collection-id my-project \
   --author "Manoj" \
   --tags "architecture,dkg-v10"
 
-# Promote to Shared Memory (SHARE)
-agience-dkg promote <turnUri-from-above> --context-graph-id <id>
-
-# Search
-agience-dkg search "architecture decisions" --context-graph-id <id>
+agience-dkg promote <turnUri-from-above> --context-graph-id agience-demo
+agience-dkg search "architecture decisions" --context-graph-id agience-demo
 ```
+
+The default transport is **daemon** — direct HTTP to your local DKG v10 daemon at `http://127.0.0.1:9201`. The bearer token is auto-read from `~/.dkg/auth.token`, so you don't have to set one. WM writes do **not** require an on-chain publish, so the demo runs fully local — no TRAC staking, no testnet RPC.
+
+### Governed mode (drafts can't reach DKG)
+
+Add `--from-agience-artifact <id>` to fetch a committed artifact from an Agience instance and refuse to project it unless its state is `committed`. Title, type, content, tags, and the `commit_receipt_id` are populated automatically:
+
+```bash
+agience-dkg wm-write \
+  --from-agience-artifact 9667ca6d-cc37-410f-944d-84b838fb46d0 \
+  --title "ADR: DKG v10 as Verifiable Memory Substrate" \
+  --artifact-type decision \
+  --context-graph-id agience-demo
+```
+
+### Alternative transport — MCP Streamable HTTP
+
+Speaks to a DKG node's `/mcp` endpoint (e.g. `dkg-node/apps/agent` or a node fronted by `dkg mcp setup`). Set `DKG_TRANSPORT=mcp`, `DKG_BASE_URL=http://localhost:8083`, and `DKG_TOKEN=<mcp-bearer>` in your `.env`, or pass `--transport mcp --base-url ... --token ...` per command.
+
+> **WSL2 + Windows Agience tip:** if the integration runs in WSL but the Agience backend runs on Windows, `localhost` will not reach it. Use the Windows host IP: `AGIENCE_BASE_URL=http://$(ip route show | awk '/default/ {print $3}'):8081`. The CLI prints this hint automatically on connection refused.
 
 ## Python API
 
@@ -130,12 +152,13 @@ package/                Python package source (agience_dkg_integration)
   src/
     agience_dkg_integration/
       mcp_server.py     MCP stdio server (agience-dkg-mcp entry point)
-      client.py         DkgHttpClient — MCP Streamable HTTP to DKG node
+      client.py         DkgHttpClient — MCP Streamable HTTP transport (legacy)
+      daemon_client.py  DkgDaemonClient — direct HTTP to local DKG v10 daemon
       models.py         Pydantic request/response models with artifact metadata
       formatter.py      artifact_to_markdown, session_uri_for_collection
-      cli.py            agience-dkg CLI (wm-write, promote, search)
+      cli.py            agience-dkg CLI (wm-write, promote, search; --transport switch)
   tests/
-    unit/               60 unit tests (governance gate, MCP server, JSON-LD, client, models)
+    unit/               75 unit tests (governance gate, both transports, MCP server, JSON-LD, models)
     integration/        5 live-node integration tests
 docs/
   security-notes.md
@@ -155,7 +178,7 @@ LICENSE                 MIT
 
 | Suite | Count | Requires DKG node |
 |---|---|---|
-| Integration package unit tests | 60 | No |
+| Integration package unit tests | 75 | No |
 | Integration package integration tests | 5 | Yes |
 | Agience Core DKG service tests | 6 | No |
 | FLARE test suite | 101 | No (Docker only) |

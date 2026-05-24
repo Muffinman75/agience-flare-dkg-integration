@@ -1,5 +1,6 @@
 __all__ = [
     "DkgHttpClient",
+    "DkgDaemonClient",
     "MemoryTurnRequest",
     "MemoryTurnResult",
     "AssertionPromoteRequest",
@@ -20,6 +21,7 @@ from .agience_client import (
     ArtifactNotCommittedError,
 )
 from .client import DkgHttpClient
+from .daemon_client import DkgDaemonClient
 from .models import (
     AssertionPromoteRequest,
     AssertionPromoteResult,

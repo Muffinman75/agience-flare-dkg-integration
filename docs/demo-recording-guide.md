@@ -1,8 +1,12 @@
 # Demo Recording Guide — Agience × DKG v10 Integration
 
-**Last updated:** 2026-05-13 (post end-to-end success)
+**Last updated:** 2026-05-23 (post-daemon-integration; v0.4.0)
 
-This is the practical, scene-by-scene shooting script for the bounty submission video. It reflects the actual flow that was proved end-to-end on 2026-05-12: an OpenAI-powered LLM in Agience generates an Architecture Decision Record, a human commits it through Agience's governance boundary, and the integration projects it as a typed `agience:` Knowledge Asset to DKG v10 — refusing to project anything still in `draft`.
+This is the practical, scene-by-scene shooting script for the bounty submission video. It reflects the flow proved end-to-end on 2026-05-23 against the official OriginTrail v10 daemon: an OpenAI-powered LLM in Agience generates an Architecture Decision Record, a human commits it through Agience's governance boundary, and the integration projects it as a typed `agience:` Knowledge Asset directly into the local DKG v10 daemon — refusing to project anything still in `draft`.
+
+> **🎥 Recording plan for v0.4.0 — single daemon demo.** Re-record Scenes 2 (services), 4 (governance refusal), 6 (successful daemon write), 7 (file reference: `daemon_client.py`), 8 (test count `75 passed`). Scenes 1, 3, 5, 9, 10 can be reused if their narration still aligns with the daemon-first framing.
+>
+> **MCP transport is supported on the same code path** (`--transport mcp`, see Scene 7 narration and the README). Reviewers can exercise it themselves by pointing `DKG_BASE_URL` at an MCP-fronted DKG node once their side is reachable — no separate video is recorded, because the governance gate, JSON-LD payload shape, and CLI surface are transport-independent. This mirrors RepNet's single-flow recording posture.
 
 The legacy CLI-only walkthrough is preserved at [`demo-script.md`](demo-script.md). This file supersedes it for recording purposes.
 
@@ -24,32 +28,48 @@ Get-Content C:\Users\manoj\Repos\agience\agience-core\.env
 
 If `OPENAI_API_KEY` isn't there, add the line. Aria's chat handler reads this on startup; without it, the agentic chat returns `"No LLM connection available"`.
 
-### 0.2 DKG agent `.env`
+### 0.2 DKG v10 daemon (canonical)
 
-File: `dkg/dkg-node/apps/agent/.env`
+Install and start the official OriginTrail v10 daemon in WSL:
 
-The Agience backend defaults to port 8081, and so does the DKG agent — that's the collision we kept hitting. Open the file in WSL or your editor and change one line:
-
+```bash
+npm install -g @origintrail-official/dkg
+dkg init           # one-time; writes ~/.dkg/auth.token
+DKG_PORT=9201 dkg start   # 9200 collides with Windows Elasticsearch; use 9201
 ```
-PORT=8083
+
+Verify:
+
+```bash
+curl -s http://127.0.0.1:9201/health
+# {"error":"Unauthorized — provide a valid Bearer token..."} confirms it's listening
 ```
 
-Confirmed working values for the rest of the file are already there (`DKG_OTNODE_URL`, wallets, `DEFAULT_PUBLISH_BLOCKCHAIN`). Don't touch them.
+The daemon is the **primary transport** for the demo. WM writes are fully local — no testnet RPC required.
+
+### 0.2b (Optional) MCP-fronted DKG agent
+
+Only if you also want to record the MCP transport path. File: `dkg/dkg-node/apps/agent/.env`. Set `PORT=8083` (8081 collides with Agience backend) and leave the existing `DKG_OTNODE_URL` / wallet values alone.
 
 ### 0.3 Integration package `.env`
 
 File: `integration/package/.env`
 
-Copy from the template:
+Copy from the template and set:
 
-```powershell
-Copy-Item C:\Users\manoj\Repos\agience\integration\package\.env.example `
-          C:\Users\manoj\Repos\agience\integration\package\.env
+```
+# Primary transport (daemon)
+DKG_TRANSPORT=daemon
+DKG_BASE_URL=http://127.0.0.1:9201
+DKG_CONTEXT_GRAPH=agience-demo
+# DKG_DAEMON_TOKEN is auto-read from ~/.dkg/auth.token; only set explicitly if you've moved it
+
+# Agience platform (for --from-agience-artifact)
+AGIENCE_BASE_URL=http://localhost:8081
+AGIENCE_TOKEN=agc_...
 ```
 
-Then edit and fill in `AGIENCE_TOKEN` (your `agc_...` key minted from the UI or `POST /api-keys`). The other values in the template (`DKG_BASE_URL=http://localhost:8083`, `DKG_TOKEN`, `DKG_CONTEXT_GRAPH=agience-demo`, `AGIENCE_BASE_URL=http://localhost:8081`) match the local setup we verified.
-
-The `agience-dkg` CLI and `agience-dkg-mcp` server now auto-load this file at startup. Existing shell exports still take precedence, so you can override any value per-command if needed.
+The `agience-dkg` CLI auto-loads this file at startup; shell exports still take precedence per-command. If you ever record the MCP transport, override `DKG_TRANSPORT=mcp`, `DKG_BASE_URL=http://localhost:8083`, and `DKG_TOKEN=<mcp-bearer>` per-invocation.
 
 ### 0.4 Reinstall the package (only after pulling new code)
 
@@ -64,7 +84,7 @@ This picks up the new `python-dotenv` dependency and the auto-loader.
 
 ## 1. Start the three services (per recording session)
 
-Open three terminals. None of them need any `$env:` exports any more.
+Open three terminals.
 
 ### Terminal 1 — Agience backend
 
@@ -73,44 +93,43 @@ cd C:\Users\manoj\Repos\agience\agience-core
 .\agience.bat dev
 ```
 
-Wait until the backend logs:
+Wait until the backend logs `Application startup complete.` Open the UI at `http://localhost:5173` and log in.
 
-```
-Application startup complete.
-Phase 4 search initialization complete.
-```
-
-Open the UI at `http://localhost:5173` and log in. Confirm the Inbox workspace exists.
-
-### Terminal 2 — DKG agent (WSL)
+### Terminal 2 — DKG v10 daemon (WSL)
 
 ```bash
-cd /mnt/c/Users/manoj/Repos/agience/dkg/dkg-node/apps/agent
-source ~/.nvm/nvm.sh && nvm use 22
-node dist/index.js
+DKG_PORT=9201 dkg start
 ```
 
-Wait for `Server running at http://localhost:8083/`.
+If already running, confirm:
 
-Sanity check from PowerShell:
-
-```powershell
-Invoke-RestMethod http://localhost:8083/health
+```bash
+dkg status   # or: curl -s http://127.0.0.1:9201/health
 ```
 
-### Terminal 3 — recording terminal
+A `401 Unauthorized` from `/health` (without a token) is the healthy signal that the daemon is listening.
 
-```powershell
-cd C:\Users\manoj\Repos\agience\integration\package
+### Terminal 3 — recording terminal (WSL, **recommended** — avoids PowerShell quoting issues and `localhost`-vs-Windows-host confusion)
+
+```bash
+cd /mnt/c/Users/manoj/Repos/agience/integration
+source .venv/bin/activate
+
+# Load .env (handles inline comments and CRLF safely)
+eval "$(python -c 'from dotenv import dotenv_values; [print(f\"export {k}={v!r}\") for k,v in dotenv_values(\"package/.env\").items() if v]')"
+
+# WSL → Windows host: localhost in WSL2 is NOT the Agience host. Resolve once:
+WIN_HOST=$(ip route show | awk '/default/ {print $3}')
+AGIENCE_BASE_URL="http://$WIN_HOST:8081"  # override the .env's localhost
 ```
 
-Verify the auto-loader picks up your `.env`:
+Verify:
 
-```powershell
-agience-dkg wm-write --help | Select-Object -First 5
+```bash
+echo "DKG_BASE_URL=$DKG_BASE_URL"
+echo "AGIENCE_BASE_URL=$AGIENCE_BASE_URL"
+agience-dkg wm-write --help | head
 ```
-
-(no `Error: DKG bearer token required` means the .env loaded fine.)
 
 ---
 
@@ -128,15 +147,15 @@ Total target length: **8–10 minutes.** Tight, focused, no dead air.
 
 Show the architecture diagram from `integration/DESIGN_BRIEF.md` if you have one ready.
 
-### Scene 2 — The three running services (30s)
+### Scene 2 — The three running services (30s)  🎥 **RE-RECORD**
 
 Quick cuts through the three terminals:
 
 - Agience backend log line: `Application startup complete.`
-- DKG agent log line: `Server running at http://localhost:8083/`
+- DKG daemon: `dkg status` shows running, then `curl http://127.0.0.1:9201/health` returns the `401 Unauthorized` healthy-listening signal
 - The Agience UI logged in, Inbox workspace visible
 
-Narrate: *"Three components running locally: Agience backend on 8081, DKG agent node on 8083, and the integration CLI."*
+Narrate: *"Three components running locally: the Agience platform on 8081, the official OriginTrail DKG v10 daemon on 9201, and the integration CLI. No testnet RPC, no public node — the whole demo loop runs against the daemon OriginTrail just shipped."*
 
 ### Scene 3 — LLM generates an artifact inside Agience (90s)
 
@@ -155,22 +174,26 @@ Narrate: *"The OpenAI-powered chat agent calls Agience's `create_artifact` MCP t
 
 Click into the new artifact. Show its state in the right-hand panel: **`draft`**.
 
-### Scene 4 — The governance gate refuses to project a draft (45s)
+### Scene 4 — The governance gate refuses to project a draft (45s)  🎥 **RE-RECORD**
 
 Cut to Terminal 3. Grab the draft artifact's ID from the URL or backend log:
 
-```powershell
-$artifactId = "<the-draft-artifact-id>"
+```bash
+artifactId="<the-draft-artifact-id>"
 ```
 
-Run:
+Run against the daemon:
 
-```powershell
-agience-dkg wm-write `
-  --from-agience-artifact $artifactId `
-  --title "ADR: DKG v10 as Verifiable Memory Substrate" `
-  --artifact-type "decision" `
-  --context-graph-id $env:DKG_CONTEXT_GRAPH
+```bash
+agience-dkg wm-write \
+  --transport daemon \
+  --from-agience-artifact "$artifactId" \
+  --title "ADR: DKG v10 as Verifiable Memory Substrate" \
+  --artifact-type "decision" \
+  --context-graph-id "$DKG_CONTEXT_GRAPH" \
+  --base-url "$DKG_BASE_URL" \
+  --agience-base-url "$AGIENCE_BASE_URL" \
+  --agience-token "$AGIENCE_TOKEN"
 ```
 
 Expected output:
@@ -180,7 +203,7 @@ Governance error: Artifact '<id>' is in state 'draft', not 'committed'.
 Only committed Agience artifacts may be projected to DKG.
 ```
 
-Narrate: *"The integration refuses. This is the whole point: drafts cannot become shared memory. Governance is enforced at the boundary, not by policy."*
+Narrate: *"The integration refuses. This is the whole point: drafts cannot become shared memory. Governance is enforced at the boundary, not by policy. Same refusal whether the downstream is the local daemon or an MCP-fronted node — the gate is upstream of transport."*
 
 ### Scene 5 — Human commit (45s)
 
@@ -201,38 +224,45 @@ Invoke-RestMethod `
 
 → `state : committed`
 
-### Scene 6 — Project to DKG (60s)
+### Scene 6 — Project to DKG (60s)  🎥 **RE-RECORD**
 
-```powershell
-agience-dkg wm-write `
-  --from-agience-artifact $artifactId `
-  --title "ADR: DKG v10 as Verifiable Memory Substrate" `
-  --artifact-type "decision" `
-  --context-graph-id $env:DKG_CONTEXT_GRAPH
+Same command as Scene 4 — except the artifact is now `committed`, so the gate lets it through:
+
+```bash
+agience-dkg wm-write \
+  --transport daemon \
+  --from-agience-artifact "$artifactId" \
+  --title "ADR: DKG v10 as Verifiable Memory Substrate" \
+  --artifact-type "decision" \
+  --context-graph-id "$DKG_CONTEXT_GRAPH" \
+  --base-url "$DKG_BASE_URL" \
+  --agience-base-url "$AGIENCE_BASE_URL" \
+  --agience-token "$AGIENCE_TOKEN"
 ```
 
-Expected output (JSON):
+Expected output (real, captured 2026-05-23):
 
 ```json
 {
-  "turn_uri": "agience://memory/agience-demo/...",
+  "turn_uri": "did:dkg:context-graph:agience-demo/assertion/0x6863…/<artifactId>-ADR-DKG-v10-as-Verifiable-Memory-Substrate",
   "layer": "wm",
   "context_graph_id": "agience-demo",
-  "status": "anchored",   // or "pending" if testnet RPC is down
-  ...
+  "status": "anchored",
+  "error": null,
+  "raw_response": {
+    "create": { "assertionUri": "did:dkg:context-graph:agience-demo/assertion/..." },
+    "write":  { "written": 8 }
+  }
 }
 ```
 
-Narrate while it runs: *"The CLI fetches the committed artifact from Agience, builds a typed `agience:` JSON-LD Knowledge Asset — `@type: agience:decision`, predicates for author, tags, collection, memory layer — attaches the commit receipt ID, and POSTs it through the DKG node's MCP transport."*
+Narrate while it runs: *"The CLI fetches the committed artifact from Agience, builds a typed `agience:` JSON-LD Knowledge Asset — `@type: agience:decision`, predicates for author, tags, collection, memory layer — attaches the commit receipt ID, and POSTs it through `daemon_client.py` to the local DKG v10 daemon: first `POST /api/assertion/create`, then `POST /api/assertion/<name>/write`."*
 
-When it returns:
+When it returns: *"Anchored. Eight RDF quads written. The Knowledge Asset has a stable assertion URI under the Context Graph and is immediately SPARQL-queryable. No testnet RPC was involved — this is the daemon's own local store."*
 
-- If `status: anchored` → *"Anchored on-chain. The Knowledge Asset has a UAL and is SPARQL-queryable across Context Graphs."*
-- If `status: pending` → *"MCP transport succeeded — the DKG node accepted the typed asset. Anchoring is pending because the public testnet RPC is intermittent. The integration distinguishes transport success from anchoring state honestly, rather than failing silently."*
+### Scene 7 — Show the typed JSON-LD (45s)  🎥 **RE-RECORD** (file reference updated)
 
-### Scene 7 — Show the typed JSON-LD (45s)
-
-Open `integration/package/src/agience_dkg_integration/client.py` to the `memory_turn` method. Highlight the JSON-LD construction:
+Open `integration/package/src/agience_dkg_integration/daemon_client.py` to the `memory_turn` method (the canonical transport). Highlight the JSON-LD construction:
 
 ```python
 jsonld = {
@@ -246,28 +276,27 @@ jsonld = {
 }
 ```
 
-Narrate: *"Not a generic `schema:Article`. The `agience:` vocabulary makes the asset type-aware — any agent can SPARQL-query for `?x a agience:decision` across organisations and get back governed, attested artifacts."*
+Narrate: *"Not a generic `schema:Article`. The `agience:` vocabulary makes the asset type-aware — any agent can SPARQL-query for `?x a agience:decision` across organisations and get back governed, attested artifacts. Identical payload shape regardless of whether the downstream is the daemon HTTP API or an MCP-fronted node — only the transport differs."*
 
-### Scene 8 — Test suites (45s)
-
-```powershell
-cd C:\Users\manoj\Repos\agience\integration\package
-pytest tests/unit -v --tb=no -q
-```
-
-→ *60 passed*
+### Scene 8 — Test suites (45s)  🎥 **RE-RECORD** (counts changed)
 
 ```bash
-# in WSL, with DKG node running
-DKG_BASE_URL=http://localhost:8083 \
-DKG_TOKEN=53e0a288-1cd9-40de-b75c-1f53c4c77b05 \
-DKG_CONTEXT_GRAPH=agience-test \
-.venv/bin/pytest package/tests/integration -v -s
+cd /mnt/c/Users/manoj/Repos/agience/integration
+source .venv/bin/activate
+python -m pytest package/tests/unit -q
 ```
 
-→ *5 passed* (the long blockchain-anchoring ones may take ~9 minutes — record the start, cut to the result, narrate the gap).
+→ *75 passed* (15 of which are new daemon-client coverage: token resolution priority, WM write, SWM write, promote, SPARQL with `GRAPH ?g` named-sub-graph traversal)
 
-Narrate: *"60 unit tests cover the typed JSON-LD generation, governance gate refusal of drafts, MCP transport, error reporting, and CLI flow. 5 integration tests run end-to-end against the live DKG node on a real testnet."*
+```bash
+# Integration tests (requires either the daemon on :9201 or an MCP node on :8081/:8083)
+DKG_BASE_URL=http://127.0.0.1:9201 DKG_CONTEXT_GRAPH=agience-test \
+  python -m pytest package/tests/integration -v -s
+```
+
+→ *5 passed*
+
+Narrate: *"75 unit tests cover both transports, the governance gate refusal of drafts, typed JSON-LD generation, error reporting, and the CLI flow. 5 integration tests run end-to-end against a live DKG v10 daemon — or an MCP-fronted node — with identical results."*
 
 ### Scene 9 — FLARE reference (30s, optional)
 
@@ -291,11 +320,11 @@ Narrate: *"FLARE is the cryptographic confidentiality layer. When an Agience col
 ## Recording checklist
 
 - [ ] Agience backend running, UI logged in
-- [ ] DKG agent on `:8083`, `/health` returns 200
-- [ ] `integration/package/.env` populated and verified
+- [ ] DKG v10 daemon running on `:9201` (`dkg status` confirms; `curl /health` returns 401 without token)
+- [ ] `integration/package/.env` populated; `WIN_HOST` resolved if recording from WSL
 - [ ] Scene 4 produces the **governance refusal** error (this is the money shot — don't skip)
-- [ ] Scene 6 produces a `turn_uri` and an explicit `status` field
-- [ ] Unit test count is **60 passed**, integration tests **5 passed**
+- [ ] Scene 6 produces a `turn_uri` and `status: anchored` against the daemon
+- [ ] Unit test count is **75 passed**, integration tests **5 passed**
 - [ ] No competitor submissions or unbounded speculation about Beacon
 - [ ] Audio levels consistent across terminals and UI
 
@@ -305,8 +334,11 @@ Narrate: *"FLARE is the cryptographic confidentiality layer. When an Agience col
 |---|---|---|
 | `Governance error: ... draft, not committed` (when you expected committed) | Artifact was created in a **collection**, not a workspace, so the workspace commit didn't touch it. | Create the artifact via UI **inside a workspace** (Inbox is fine), or create directly via `POST /artifacts` with `container_id` = a workspace ID. |
 | `Commit only supported on workspaces` | Trying to commit a collection ID. | Commit the parent **workspace** ID instead. |
-| `307 Temporary Redirect` on `/mcp` | `DKG_BASE_URL` is pointing at the Agience backend (8081), not the DKG node. | Set `DKG_BASE_URL=http://localhost:8083` in `integration/package/.env`. |
-| `401 Unauthorized` on `/mcp/` | Same as above. | Same as above. |
+| `307 Temporary Redirect` on `/mcp` (MCP transport only) | `DKG_BASE_URL` is pointing at the Agience backend (8081), not the DKG node. | Set `DKG_BASE_URL=http://localhost:8083` and `DKG_TRANSPORT=mcp`. |
+| `401 Unauthorized` on `/mcp/` (MCP transport only) | Same as above. | Same as above. |
+| `401 Unauthorized` on `/api/...` (daemon transport) | Bearer token missing or stale. | Confirm `~/.dkg/auth.token` exists and is current; or set `DKG_DAEMON_TOKEN` explicitly. |
+| `Connection refused` on `AGIENCE_BASE_URL=http://localhost:8081` from WSL | WSL2's `localhost` is not the Windows host. | `WIN_HOST=$(ip route show \| awk '/default/ {print $3}'); AGIENCE_BASE_URL="http://$WIN_HOST:8081"`. |
+| `Address already in use` on port 9200 | Windows Elasticsearch holds 9200. | Use `DKG_PORT=9201 dkg start` (already the default in this guide). |
 | `No LLM connection available. Set OPENAI_API_KEY ...` | Aria's chat handler can't see your OpenAI key. | Put `OPENAI_API_KEY=sk-...` in `agience-core/.env` (the UI LLM Keys tab does **not** wire into the default chat handler — flagged as a bug to John). |
 | `missing required option(s): --title` after `--from-agience-artifact` | Artifact has no `title` (UI doesn't enforce it). | Pass `--title "..."` explicitly until Agience tightens validation. |
 | Blockchain anchor returns `pending`, lofar-testnet error in DKG log | Public OT-node RPC intermittent. | Either retry, or accept `pending` — narrate it as the integration honestly reporting state. |

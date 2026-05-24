@@ -29,6 +29,56 @@ import httpx
 from pydantic import BaseModel, Field
 
 
+def _is_wsl() -> bool:
+    """Detect whether the current process is running under WSL2."""
+    try:
+        with open("/proc/version", "r", encoding="utf-8") as f:
+            return "microsoft" in f.read().lower()
+    except OSError:
+        return False
+
+
+def _wsl_loopback_hint(url: str) -> str:
+    """Return an actionable hint when a localhost call is likely hitting the
+    WSL2 loopback rather than the Windows host where Agience runs.
+
+    WSL2's ``localhost`` resolves to WSL's own loopback interface, *not* the
+    Windows host. Services running on Windows (e.g. Agience on :8081) are
+    only reachable from WSL via the Windows host IP, which is exposed via
+    the default gateway.
+    """
+    if not _is_wsl():
+        return ""
+    if not any(host in url for host in ("localhost", "127.0.0.1")):
+        return ""
+    try:
+        with open("/proc/net/route", "r", encoding="utf-8") as f:
+            lines = f.read().splitlines()[1:]
+        for line in lines:
+            parts = line.split()
+            if len(parts) < 3:
+                continue
+            if parts[1] == "00000000":  # default route
+                # Gateway is little-endian hex
+                hex_ip = parts[2]
+                ip = ".".join(str(int(hex_ip[i : i + 2], 16)) for i in (6, 4, 2, 0))
+                return (
+                    f"\n\nHint: this process is running in WSL2 but the URL targets "
+                    f"a localhost/loopback address. The Agience backend appears to run "
+                    f"on the Windows host \u2014 try AGIENCE_BASE_URL=http://{ip}:8081 "
+                    f"(your Windows host IP). Add `--agience-base-url http://{ip}:8081` "
+                    f"or export AGIENCE_BASE_URL in your shell."
+                )
+    except OSError:
+        pass
+    return (
+        "\n\nHint: this process is running in WSL2 but the URL targets a "
+        "localhost address. WSL2's localhost is not the Windows host; "
+        "set AGIENCE_BASE_URL to the Windows host IP "
+        "(e.g. `$(ip route show | awk '/default/ {print $3}')`)."
+    )
+
+
 class AgienceClientError(RuntimeError):
     """Base exception for Agience client failures (transport, auth, parse)."""
 
@@ -118,8 +168,9 @@ class AgienceClient:
             with httpx.Client(timeout=self._timeout) as http:
                 r = http.get(url, headers=self._headers())
         except httpx.HTTPError as exc:
+            hint = _wsl_loopback_hint(url)
             raise AgienceClientError(
-                f"Failed to reach Agience at {url}: {exc}"
+                f"Failed to reach Agience at {url}: {exc}{hint}"
             ) from exc
 
         if r.status_code == 404:

@@ -15,6 +15,7 @@ from typer.testing import CliRunner
 
 import agience_dkg_integration.agience_client as agience_client_mod
 import agience_dkg_integration.client as dkg_client_mod
+import agience_dkg_integration.daemon_client as dkg_daemon_mod
 from agience_dkg_integration.cli import app
 
 runner = CliRunner()
@@ -32,12 +33,17 @@ def _patch_agience(monkeypatch, handler):
 
 
 def _patch_dkg_memory_turn(monkeypatch, captured: Dict[str, Any]):
-    """Replace DkgHttpClient.memory_turn with a recorder that returns success."""
+    """Replace `memory_turn` on **both** DKG transports with a recorder.
+
+    The CLI's default transport is `daemon` (DkgDaemonClient); MCP remains a
+    fully-supported alternative. These tests assert governance-flow behaviour
+    that is transport-independent, so we patch both clients to keep the
+    suite stable regardless of which transport the CLI happens to pick.
+    """
+    from agience_dkg_integration.models import MemoryTurnResult
 
     def fake_memory_turn(self, request):
         captured["request"] = request
-        # Return a fake successful MemoryTurnResult
-        from agience_dkg_integration.models import MemoryTurnResult
         return MemoryTurnResult(
             turnUri="agience://memory/cg-1/abc",
             layer=request.layer,
@@ -48,6 +54,7 @@ def _patch_dkg_memory_turn(monkeypatch, captured: Dict[str, Any]):
         )
 
     monkeypatch.setattr(dkg_client_mod.DkgHttpClient, "memory_turn", fake_memory_turn)
+    monkeypatch.setattr(dkg_daemon_mod.DkgDaemonClient, "memory_turn", fake_memory_turn)
 
 
 def test_governed_mode_projects_committed_artifact(monkeypatch):

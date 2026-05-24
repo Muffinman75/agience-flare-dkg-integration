@@ -4,8 +4,10 @@
 
 All credentials are read from environment variables — never hardcoded or logged.
 
-- `DKG_TOKEN` — bearer token for the DKG v10 node HTTP API
-- `DKG_BASE_URL` — base URL for the DKG node (default: `http://localhost:8083` when running alongside Agience backend on `8081`)
+- `DKG_TOKEN` — bearer token for the MCP-fronted DKG node HTTP API (MCP transport only)
+- `DKG_DAEMON_TOKEN` — bearer token for the local DKG v10 daemon HTTP API (daemon transport). Auto-loaded from `~/.dkg/auth.token` if unset.
+- `DKG_BASE_URL` — base URL for the DKG node or daemon (daemon default: `http://127.0.0.1:9201`; MCP default `http://localhost:8083` when running alongside Agience backend on `8081`)
+- `DKG_TRANSPORT` — selects transport (`daemon` or `mcp`). Override per-call with `--transport`.
 - `AGIENCE_TOKEN` — Agience scoped API key (`agc_...`), only required when using `--from-agience-artifact` to fetch governed artifacts before projection
 
 No Agience platform credentials are required for direct CLI writes (`wm-write` with explicit `--content`). They are only needed when fetching committed artifacts from the Agience governance layer. FLARE service credentials are only used when `retrieval_profile = protected-search` is explicitly configured by the operator — this mode is not enabled by default.
@@ -34,14 +36,29 @@ When `retrieval_profile = protected-search`, FLARE mediates the retrieval path w
 
 All external domains contacted by this package:
 
-1. **DKG node endpoint** — the `DKG_BASE_URL` value (default: `http://localhost:8081`). This is the only endpoint contacted in the default configuration.
-2. **FLARE service endpoint** — only when the operator explicitly enables `protected-search` mode. Disabled by default. When enabled, only derived summary/claim projections are written to DKG; raw artifact content remains FLARE-protected.
+1. **DKG endpoint** — the `DKG_BASE_URL` value. With daemon transport this is the local DKG v10 daemon (default `http://127.0.0.1:9201`); with MCP transport it is a DKG node exposing `POST /mcp`. This is the only endpoint contacted in the default configuration.
+2. **Agience platform endpoint** — only when `--from-agience-artifact` is used; contacts `AGIENCE_BASE_URL` to fetch a governed artifact before projection.
+3. **FLARE service endpoint** — only when the operator explicitly enables `protected-search` mode. Disabled by default. When enabled, only derived summary/claim projections are written to DKG; raw artifact content remains FLARE-protected.
 
 No other external domains are contacted. No telemetry, no analytics endpoints, no remote module loading.
 
 ## Declared DKG write authority
 
-Every DKG endpoint invoked by this package:
+Every DKG endpoint invoked by this package, across both supported public interfaces (bounty § 5):
+
+### Daemon HTTP API (canonical)
+
+| Endpoint | Operation | Authority |
+|---|---|---|
+| `GET /health` | Health check | Read-only |
+| `POST /api/assertion/create` | Create assertion under a Context Graph | Write (WM) |
+| `POST /api/assertion/{name}/write` | Write JSON-LD body of an assertion | Write (WM) |
+| `POST /api/shared-memory/write` (`localOnly=true`) | Write Working Memory layer | Write (WM) |
+| `POST /api/shared-memory/write` (`localOnly=false`) | Write Shared Memory layer | **Curator-authorized (SHARE)** |
+| `POST /api/assertion/{name}/promote` | Promote Working → Shared Memory | **Curator-authorized (SHARE)** |
+| `POST /api/query` | SPARQL search across named assertion sub-graphs | Read-only |
+
+### MCP Streamable HTTP
 
 | Endpoint / Tool | Operation | Authority |
 |---|---|---|
@@ -50,13 +67,13 @@ Every DKG endpoint invoked by this package:
 | `POST /mcp` → `dkg-create` (privacy=public) | Promote to Shared Memory (SHARE) | **Curator-authorized (SHARE)** |
 | `POST /mcp` → `dkg-sparql-query` | Search Working and/or Shared Memory | Read-only |
 
-All write and search operations go through the **MCP Streamable HTTP transport** at `POST /mcp`. The SHARE operation (`dkg-create` with `privacy=public`) is **always explicit and operator-initiated**. It is never called automatically, silently, or as a side effect of a write operation.
+All SHARE operations are **always explicit and operator-initiated** — invoked only by the `agience-dkg promote` CLI command or the `agience_promote` MCP tool, never as a side effect of a write.
 
 PUBLISH toward Verified Memory is not invoked in this Round 1 package.
 
 ## MCP stdio server
 
-The `agience-dkg-mcp` entry point runs as an MCP stdio server. It reads `DKG_TOKEN` and `DKG_BASE_URL` from environment variables only — credentials are never accepted as tool arguments. The server exposes three tools (`agience_wm_write`, `agience_promote`, `agience_search`) that call through to the `DkgHttpClient` with the same security properties as the CLI.
+The `agience-dkg-mcp` entry point runs as an MCP stdio server. It reads `DKG_TOKEN`, `DKG_DAEMON_TOKEN`, `DKG_BASE_URL`, and `DKG_TRANSPORT` from environment variables only — credentials are never accepted as tool arguments. The server exposes three tools (`agience_wm_write`, `agience_promote`, `agience_search`) that call through to either `DkgDaemonClient` or `DkgHttpClient` (selected by `DKG_TRANSPORT`) with the same security properties as the CLI.
 
 ## Curator authority stance
 
@@ -76,4 +93,4 @@ This package:
 - MIT license, SPDX identifier `MIT`
 - `pip-audit -r requirements-audit.txt` clean against direct dependencies (`httpx`, `pydantic`, `typer`, `python-dotenv`) — no known vulnerabilities as of 2026-05-13. CVEs reported in indirect deps of `pip-audit` itself (`authlib`, `urllib3`, `pytest`, `python-multipart`) are not transitive from this package.
 - Dependencies pinned with lower bounds only (`httpx>=0.27`, `pydantic>=2.0,<3`, `typer>=0.12,<1`, `python-dotenv>=1.0`) for compatibility
-- Published to PyPI as `agience-flare-dkg-integration==0.3.1` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`); npm wrapper of the same name and version published with provenance via `actions/setup-node` + `npm publish --provenance`
+- Published to PyPI as `agience-flare-dkg-integration==0.4.0` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`); npm wrapper of the same name and version published with provenance via `actions/setup-node` + `npm publish --provenance`

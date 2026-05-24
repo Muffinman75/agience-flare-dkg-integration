@@ -14,12 +14,15 @@ Produce a walkthrough for the Flagship Round 1 submission showing the **three-la
 
 | Service | Start command | URL |
 |---|---|---|
-| DKG v10 agent node | `node dist/index.js` (in `dkg-node/apps/agent`) | `http://localhost:8081` |
+| DKG v10 daemon (canonical) | `DKG_PORT=9201 dkg start` | `http://127.0.0.1:9201` |
+| _or_ DKG v10 agent node (MCP transport) | `node dist/index.js` (in `dkg-node/apps/agent`) | `http://localhost:8083` |
 
 Environment variables needed:
 ```bash
-export DKG_BASE_URL=http://localhost:8081
-export DKG_TOKEN=<bearer-token>
+export DKG_TRANSPORT=daemon                       # or 'mcp'
+export DKG_BASE_URL=http://127.0.0.1:9201         # or http://localhost:8083 for MCP
+# DKG_DAEMON_TOKEN auto-read from ~/.dkg/auth.token (daemon)
+# DKG_TOKEN=<bearer-token>                        (MCP only)
 export DKG_CONTEXT_GRAPH=agience-demo
 ```
 
@@ -143,9 +146,9 @@ DKG_CONTEXT_GRAPH=agience-test \
 pytest package/tests/integration -v
 ```
 
-Expected output: `60 passed` (unit) + `5 passed` (integration).
+Expected output: `75 passed` (unit) + `5 passed` (integration).
 
-Narrate: "60 unit tests cover the MCP server tool definitions and message routing, typed JSON-LD generation with the agience vocabulary, error status detection for blockchain failures, client operations, Pydantic models, the formatter, the Agience client governance gate (only `committed` artifacts may be projected), and the governed CLI flow. 5 integration tests run end-to-end against the live DKG node."
+Narrate: "75 unit tests cover the MCP server tool definitions and message routing, the daemon HTTP client (15 tests: token resolution, WM/SWM write, promote, SPARQL with `GRAPH ?g` traversal), typed JSON-LD generation with the agience vocabulary, error status detection, client operations, Pydantic models, the formatter, the Agience client governance gate (only `committed` artifacts may be projected), and the governed CLI flow. 5 integration tests run end-to-end against a live DKG v10 daemon or MCP-fronted node."
 
 ---
 
