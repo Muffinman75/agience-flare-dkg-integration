@@ -34,7 +34,7 @@ DKG v10 provides the shared memory substrate. But what gets written there matter
 | **Sensitive content** | Omitted or manually redacted | Physically encrypted by FLARE (AES-256-GCM per-cell, Shamir threshold oracle key issuance); only derived projections reach DKG |
 | **Knowledge Asset structure** | Generic `schema:Article` or flat JSON | Typed `agience:` RDF vocabulary with 8+ SPARQL-queryable predicates across Context Graphs |
 | **Provenance** | None or ad-hoc | Seven receipt types (commit, grant, revoke, access, projection, publication, provenance) generated on every commit |
-| **Test coverage** | Package-level tests | 172 tests across 4 suites: integration package (60 unit + 5 integration), Agience Core DKG service (6), FLARE (101) |
+| **Test coverage** | Package-level tests | 187 tests across 4 suites: integration package (75 unit + 5 integration), Agience Core DKG service (6), FLARE (101) |
 
 ## Install
 

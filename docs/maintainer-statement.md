@@ -19,7 +19,16 @@ Commitment includes:
 
 ## Scope
 
-The maintained surface is the DKG v10 public MCP interface:
+The maintained surface is the DKG v10 public interface set declared in bounty § 5:
+
+**Daemon HTTP API (default transport):**
+- `POST /api/assertion/create` + `POST /api/assertion/{name}/write` (Working Memory write)
+- `POST /api/shared-memory/write` (Shared Memory write)
+- `POST /api/assertion/{name}/promote` (Curator-authorized SHARE)
+- `POST /api/query` (memory search)
+- `GET /api/status` (health probe)
+
+**MCP Streamable HTTP (alternative transport):**
 - `POST /mcp` → `dkg-create` tool (Working Memory write and Shared Memory promotion)
 - `POST /mcp` → `dkg-sparql-query` tool (memory search)
 - `GET /health` (health check)

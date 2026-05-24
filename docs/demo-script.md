@@ -1,5 +1,7 @@
 # Demo Script — Agience FLARE × DKG v10 Integration
 
+> **Note (v0.4.0):** This script is the legacy MCP-flow walkthrough preserved for reference. The active recording guide is [`demo-recording-guide.md`](demo-recording-guide.md), which leads with the daemon transport that became default in v0.4.0. Test counts and version numbers below are kept in sync, but the narration here describes the MCP transport explicitly.
+
 ## Goal
 
 Produce a walkthrough for the Flagship Round 1 submission showing the **three-layer trust gradient**: Agience Core (governed authoring with native DKG models) → FLARE (cryptographic retrieval boundary) → DKG v10 (shared verifiable memory). The demo must cover:
@@ -136,7 +138,7 @@ Narrate: "Any MCP-capable agent — Claude Desktop, Cursor, Claude Code — can 
 ## Scene 7: Run the full test suite
 
 ```bash
-# Unit tests (60 tests, no live node needed)
+# Unit tests (75 tests, no live node needed)
 pytest package/tests/unit -v
 
 # Integration tests (requires live DKG node)

@@ -77,7 +77,7 @@ The `agience-dkg-mcp` entry point runs as an MCP stdio server. It reads `DKG_TOK
 
 ## Curator authority stance
 
-No SHARE or PUBLISH operation is invoked without explicit caller intent. The CLI `promote` command requires the operator to pass a `turnUri` and `context_graph_id` explicitly, and maps to `dkg-create` with `privacy=public` — there is no background promotion loop.
+No SHARE or PUBLISH operation is invoked without explicit caller intent. The CLI `promote` command requires the operator to pass a `turnUri` and `context_graph_id` explicitly, and maps to either `POST /api/assertion/{name}/promote` (daemon transport) or `dkg-create` with `privacy=public` (MCP transport) — there is no background promotion loop.
 
 ## Dynamic code loading
 

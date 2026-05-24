@@ -26,9 +26,9 @@ npm install -g agience-flare-dkg-integration
 Then install the Python CLI it wraps:
 
 ```bash
-pipx install agience-flare-dkg-integration==0.3.1
+pipx install agience-flare-dkg-integration==0.4.0
 # or:
-python -m pip install --user agience-flare-dkg-integration==0.3.1
+python -m pip install --user agience-flare-dkg-integration==0.4.0
 ```
 
 If you invoke `agience-dkg` before the Python CLI is installed, the wrapper prints the install hint above and exits with code `127`.
