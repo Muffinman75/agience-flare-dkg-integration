@@ -256,27 +256,56 @@ Expected output (real, captured 2026-05-23):
 }
 ```
 
-Narrate while it runs: *"The CLI fetches the committed artifact from Agience, builds a typed `agience:` JSON-LD Knowledge Asset — `@type: agience:decision`, predicates for author, tags, collection, memory layer — attaches the commit receipt ID, and POSTs it through `daemon_client.py` to the local DKG v10 daemon: first `POST /api/assertion/create`, then `POST /api/assertion/<name>/write`."*
+Narrate while it runs: *"The CLI fetches the committed artifact from Agience, builds a typed `agience:` RDF Knowledge Asset — `agience:decision` as the type, predicates for author, tags, collection, memory layer — attaches the commit receipt ID, and POSTs it as quads through `daemon_client.py` to the local DKG v10 daemon: first `POST /api/assertion/create`, then `POST /api/assertion/<name>/write`. The MCP transport sends the same predicate set as JSON-LD — we'll see both side by side in Scene 7."*
 
 When it returns: *"Anchored. Eight RDF quads written. The Knowledge Asset has a stable assertion URI under the Context Graph and is immediately SPARQL-queryable. No testnet RPC was involved — this is the daemon's own local store."*
 
-### Scene 7 — Show the typed JSON-LD (45s)  🎥 **RE-RECORD** (file reference updated)
+### Scene 7 — Show the typed RDF (60s)  🎥 **RE-RECORD** (split view — both transports)
 
-Open `integration/package/src/agience_dkg_integration/daemon_client.py` to the `memory_turn` method (the canonical transport). Highlight the JSON-LD construction:
+**Important:** the two transports encode the **same RDF predicates** but in different wire formats — MCP sends JSON-LD; the daemon sends N-Triples quads. Show both side by side so the "same predicates, different transport" claim is visible on screen. Split the editor vertically (VS Code: drag the tab to the right edge, or `Ctrl+\`).
+
+**Left pane — `package/src/agience_dkg_integration/client.py`, around lines 158–182** (MCP transport, JSON-LD):
 
 ```python
-jsonld = {
-    "@context": {"agience": "https://agience.ai/schema/"},
-    "@type": f"agience:{request.artifact_type}",
-    "agience:author": ...,
-    "agience:tags": ...,
-    "agience:collection": ...,
-    "agience:memoryLayer": ...,
-    "agience:commitReceiptId": commit_receipt_id,
+jsonld: Dict[str, Any] = {
+    "@context": {
+        "schema": "https://schema.org/",
+        "agience": "https://agience.ai/ontology/",
+    },
+    "@type": f"agience:{request.artifact_type or 'Artifact'}",
+    "@id": f"agience:{request.context_graph_id}/{request.artifact_id or 'unknown'}",
+    "schema:name": request.title or f"agience:{request.context_graph_id}",
+    "schema:text": request.markdown,
+    "agience:contextGraphId": request.context_graph_id,
+    "agience:memoryLayer": request.layer,
+    "agience:artifactId": request.artifact_id or "",
 }
+if request.author:
+    jsonld["agience:author"] = request.author
+if request.tags:
+    jsonld["agience:tags"] = request.tags
+if request.collection_id:
+    jsonld["agience:collection"] = request.collection_id
+if request.commit_receipt_id:
+    jsonld["agience:commitReceiptId"] = request.commit_receipt_id
 ```
 
-Narrate: *"Not a generic `schema:Article`. The `agience:` vocabulary makes the asset type-aware — any agent can SPARQL-query for `?x a agience:decision` across organisations and get back governed, attested artifacts. Identical payload shape regardless of whether the downstream is the daemon HTTP API or an MCP-fronted node — only the transport differs."*
+**Right pane — `package/src/agience_dkg_integration/daemon_client.py`, around lines 159–236** (daemon transport, quads built by `_quads_for_artifact`):
+
+```python
+quads: List[Dict[str, str]] = [
+    {"subject": subject_uri, "predicate": _RDF_TYPE, "object": type_uri},
+    {"subject": subject_uri, "predicate": f"{_SCHEMA_NS}name",          "object": _lit(request.title or request.context_graph_id)},
+    {"subject": subject_uri, "predicate": f"{_SCHEMA_NS}text",          "object": _lit(request.markdown)},
+    {"subject": subject_uri, "predicate": f"{_AGIENCE_NS}contextGraphId", "object": _lit(request.context_graph_id)},
+    {"subject": subject_uri, "predicate": f"{_AGIENCE_NS}memoryLayer",  "object": _lit(request.layer)},
+]
+# ... agience:author, agience:tags, agience:collection, agience:commitReceiptId etc. conditionally appended below
+```
+
+Narrate: *"Two transports, one RDF model. On the left, the MCP path sends JSON-LD — `@type: agience:decision`, plus the typed `agience:` predicates. On the right, the daemon path sends the equivalent N-Triples quads to `/api/assertion/create` and `/api/assertion/{name}/write`. Same `agience:` namespace, same predicate set, same SPARQL-queryable shape on the other side — only the wire format differs. Not a generic `schema:Article`: any agent can SPARQL-query for `?x a agience:decision` across organisations and get back governed, attested artifacts."*
+
+> If a single-pane shot is preferred for the live pitch clip, show **just the daemon side** (`_quads_for_artifact`) since that's what the demo actually exercises in Scene 6, and use the JSON-LD `demo-jsonld.json` `cat` shot (per `demo-clip-script.md` Scene 3) as the conceptual payload representation.
 
 ### Scene 8 — Test suites (45s)  🎥 **RE-RECORD** (counts changed)
 

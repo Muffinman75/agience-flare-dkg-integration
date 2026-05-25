@@ -19,7 +19,7 @@ Filed as PR against [`OriginTrail/dkg-integrations`](https://github.com/OriginTr
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
 - **Package version:** `0.4.0`
-- **Pinned commit SHA:** _to be updated after the 0.4.0 release commit lands on `main`_
+- **Pinned commit SHA:** `6e3a7676fa4ef76bccf9ae47e6b3974a71c036f8` (v0.4.0 release commit)
 - **License:** MIT
 - **SPDX:** `MIT`
 - **Maintainer:** Manoj Modhwadia — manojmodhwadia@outlook.com — [@Muffinman75](https://github.com/Muffinman75)
