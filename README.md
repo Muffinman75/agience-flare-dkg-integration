@@ -16,14 +16,15 @@ DKG v10 provides the shared memory substrate. But what gets written there matter
 
 ## What this package does
 
-- **MCP stdio server** (`agience-dkg-mcp`) — exposes `agience_wm_write`, `agience_promote`, `agience_search` tools for Claude Desktop, Cursor, Claude Code, and any MCP host
-- Writes committed Agience artifacts to DKG v10 **Working Memory** as typed JSON-LD Knowledge Assets with the `agience:` RDF vocabulary — SPARQL-queryable by type, author, collection, and memory layer
-- Promotes eligible assets to **Shared Memory** (SHARE) via `dkg-create` (privacy=public)
-- Searches across memory layers via `dkg-sparql-query` with typed predicates
-- All DKG calls use **MCP Streamable HTTP** at `POST /mcp` with SSE stream handling
-- Groups all artifacts under a stable `sessionUri` for oracle-queryable Context Graph scoping
-- Distinguishes MCP transport success from blockchain anchoring state (`status: anchored` vs `status: pending`)
-- FLARE optional path: when `policy_class = "internal-confidential"`, only derived projections reach DKG; raw content stays encrypted
+- **Default transport — local DKG v10 daemon HTTP API.** Direct HTTP to `http://127.0.0.1:9201` (`/api/assertion/create`, `/api/assertion/{name}/write`, `/api/assertion/{name}/promote`, `/api/query`). Bearer token auto-read from `~/.dkg/auth.token`. WM writes do not require an on-chain publish.
+- **Alternative transport — MCP Streamable HTTP.** Speaks JSON-RPC over SSE to a DKG node's `POST /mcp` endpoint (e.g. one fronted by `dkg mcp setup`). Selected per-call via `--transport mcp` or `DKG_TRANSPORT=mcp`.
+- **MCP stdio server** (`agience-dkg-mcp`) — exposes `agience_wm_write`, `agience_promote`, `agience_search` tools for Claude Desktop, Cursor, Claude Code, and any MCP host. Talks to either transport.
+- Writes committed Agience artifacts to DKG v10 **Working Memory** as typed `agience:` RDF Knowledge Assets — SPARQL-queryable by type, author, collection, and memory layer. Daemon transport sends N-Triples-style quads; MCP transport sends the equivalent JSON-LD shape; both encode the same predicate set.
+- Promotes eligible assets to **Shared Memory** (SHARE) — daemon: `POST /api/assertion/{name}/promote`; MCP: `dkg-create` with `privacy=public`. Curator-authority, never automatic.
+- Searches across memory layers — daemon: SPARQL `SELECT` over `POST /api/query` with `GRAPH ?g` traversal of named sub-graphs; MCP: `dkg-sparql-query` with the same predicate set.
+- Groups all artifacts under a stable `sessionUri` for oracle-queryable Context Graph scoping.
+- Distinguishes transport success from blockchain anchoring state (`status: anchored` vs `status: pending`).
+- FLARE optional path: when `policy_class = "internal-confidential"`, only derived projections reach DKG; raw content stays AES-256-GCM encrypted.
 
 ## What makes this different
 
@@ -54,7 +55,7 @@ python -m pip install --user agience-flare-dkg-integration
 
 ## MCP Server (for Claude Desktop, Cursor, etc.)
 
-Add to your MCP client config (e.g. `claude_desktop_config.json`):
+Add to your MCP client config (e.g. `claude_desktop_config.json`). The defaults below assume the local DKG v10 daemon — no token needs to be set in this config because the daemon transport auto-reads `~/.dkg/auth.token`:
 
 ```json
 {
@@ -62,13 +63,14 @@ Add to your MCP client config (e.g. `claude_desktop_config.json`):
     "agience-dkg": {
       "command": "agience-dkg-mcp",
       "env": {
-        "DKG_BASE_URL": "http://localhost:8081",
-        "DKG_TOKEN": "your-bearer-token"
+        "DKG_BASE_URL": "http://127.0.0.1:9201"
       }
     }
   }
 }
 ```
+
+To target an MCP-fronted DKG node instead, add `"DKG_TRANSPORT": "mcp"`, set `"DKG_BASE_URL": "http://localhost:8083"`, and add `"DKG_TOKEN": "<mcp-bearer>"`.
 
 This exposes three tools: `agience_wm_write`, `agience_promote`, `agience_search`.
 
@@ -121,10 +123,15 @@ Speaks to a DKG node's `/mcp` endpoint (e.g. `dkg-node/apps/agent` or a node fro
 ## Python API
 
 ```python
-from agience_dkg_integration import DkgHttpClient, MemoryTurnRequest
+from agience_dkg_integration import DkgDaemonClient, MemoryTurnRequest
 from agience_dkg_integration.formatter import artifact_to_markdown, session_uri_for_collection
 
-client = DkgHttpClient(base_url="http://localhost:8081", bearer_token="token")
+# Default: local DKG v10 daemon. Bearer token auto-resolves from ~/.dkg/auth.token.
+client = DkgDaemonClient(base_url="http://127.0.0.1:9201")
+
+# Alternative: MCP-fronted DKG node
+# from agience_dkg_integration import DkgHttpClient
+# client = DkgHttpClient(base_url="http://localhost:8083", bearer_token="<mcp-bearer>")
 
 markdown = artifact_to_markdown(
     title="My Research Note",
@@ -152,7 +159,7 @@ package/                Python package source (agience_dkg_integration)
   src/
     agience_dkg_integration/
       mcp_server.py     MCP stdio server (agience-dkg-mcp entry point)
-      client.py         DkgHttpClient — MCP Streamable HTTP transport (legacy)
+      client.py         DkgHttpClient — MCP Streamable HTTP transport (alternative)
       daemon_client.py  DkgDaemonClient — direct HTTP to local DKG v10 daemon
       models.py         Pydantic request/response models with artifact metadata
       formatter.py      artifact_to_markdown, session_uri_for_collection
@@ -187,8 +194,8 @@ LICENSE                 MIT
 # Unit tests (no DKG node required)
 pytest package/tests/unit -v
 
-# Integration tests (requires a local DKG v10 node)
-DKG_BASE_URL=http://localhost:8081 DKG_TOKEN=<token> DKG_CONTEXT_GRAPH=<id> \
+# Integration tests (currently target the MCP transport — require an MCP-fronted DKG node)
+DKG_BASE_URL=http://localhost:8083 DKG_TOKEN=<mcp-bearer> DKG_CONTEXT_GRAPH=<id> \
 pytest package/tests/integration -v
 ```
 
