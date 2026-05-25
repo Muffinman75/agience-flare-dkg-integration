@@ -184,26 +184,44 @@ Operators who hold strong opinions against RAG-style retrieval (PAI, ARA, and th
 
 | Primitive | How used |
 |---|---|
-| **Context Graph** | One per Agience collection. `sessionUri` links all Knowledge Assets for a collection into a coherent session, enabling oracle queries like "all decisions for collection X". |
-| **Knowledge Asset** | One per Agience artifact. Written via `dkg-create` as typed JSON-LD with the `agience:` RDF vocabulary. |
+| **Context Graph** | One per Agience collection. `sessionUri` links every Knowledge Asset for a collection into a coherent named sub-graph, enabling oracle queries like *"all decisions for collection X"* via `GRAPH ?g` traversal. |
+| **Knowledge Asset** | One per committed Agience artifact. Written via `dkg-create` as typed JSON-LD with the `agience:` RDF vocabulary. Per the v10 Terms & Conditions, the on-chain ERC-1155 representation of a Knowledge Asset is established at PUBLISH time (Round 2 path); in Round 1 we write the assertion shape that becomes that Knowledge Asset on promotion to Verified Memory. |
+| **Knowledge Collection** | Implicit per Agience collection. The stream of `wm-write` calls scoped to a single `sessionUri` constitutes a Knowledge Collection — a set of typed Knowledge Assets sharing a Context Graph and authority. Round 2 makes this explicit via `dkg.asset.create` with multi-asset content. |
 | **Working Memory** | First DKG landing zone for approved artifacts. Daemon transport: `POST /api/assertion/create` then `POST /api/assertion/{name}/write` (or `/api/shared-memory/write` with `localOnly=true`). MCP transport: `dkg-create` with `privacy=private`. |
-| **Shared Memory** | Reached via SHARE — daemon transport: `POST /api/assertion/{name}/promote`. MCP transport: `dkg-create` with `privacy=public`. Explicit, Curator-authorized. |
+| **Shared Memory** | Reached via SHARE — daemon transport: `POST /api/assertion/{name}/promote`. MCP transport: `dkg-create` with `privacy=public`. Explicit, Curator-authorised. |
 | **SHARE** | Promotion from Working Memory to Shared Memory. Called explicitly; never triggered silently. |
 | **PUBLISH** | Not called in Round 1. Described in the promotion path for Round 2 readiness. |
-| **Curator** | Authority model respected: no SHARE or PUBLISH without explicit caller intent. |
-| **UAL** | Preserved as the stable artifact reference. Receipt lineage traces back to the originating Agience artifact via the `ProvenanceReceipt` chain. |
+| **Curator** | Authority model respected end-to-end. The Agience commit gate IS the Curator surface for projection: no `wm-write`, SHARE, or PUBLISH executes without an upstream `committed` state and an attached `commit_receipt_id` that resolves to a typed `agience:Authority` artifact. Maps directly onto the staging-paranet curator pattern documented in DKG v8 paranet examples (`DkgClient.paranet.reviewKnowledgeCollection`) — the Round-2 path registers an Agience-governed paranet on a chosen Supported Chain with the commit-gate as its KC submission policy. |
+| **UAL** | Preserved as the stable artifact reference. Receipt lineage traces back to the originating Agience artifact via the `ProvenanceReceipt` chain; UAL stability across WM → SWM → VM is by construction, not by re-mapping. |
+| **Entity** | Agience `Person`, `Authority`, `Authorizer`, `Agency`, `Account`, and `Invite` artifacts (see §3 "typed-artifact substrate") project as typed `agience:` Entities, so identity references on Knowledge Assets resolve to first-class graph nodes rather than free-text strings. |
 
 ---
 
 ## 7. Fit with LLM-Wiki / Autoresearch Direction
 
-Karpathy's LLM-Wiki frames a knowledge substrate natively legible to language models, continuously curated by humans and agents. The v10 memory model maps this directly:
+The bounty's own framing (§2): *"The bottleneck is no longer the model. The bottleneck is memory — specifically, a shared memory substrate that multiple agents can read, write, contest, and verify over time."*
+
+Karpathy's LLM-Wiki frames that substrate as natively legible to language models, continuously curated by a mixture of humans and agents. The v10 memory model maps this directly:
 
 - **Working Memory** = agent-populated draft surface
 - **Shared Memory** = team-gossiped collaborative layer
 - **Verified Memory** = chain-anchored trustable layer
 
-Agience provides the governed loop producing clean, attributed artifacts with stable IDs, typed structure, and provenance metadata — making DKG Working Memory useful rather than a dump of raw LLM outputs. FLARE provides the confidentiality boundary so that sensitive content can still participate via projections. Downstream agents retrieve, reason over, and act on this knowledge via Context Graph SPARQL queries.
+A research agent spends most of its life drafting and revising; only a small tail ever needs consensus verification. That tail is high-stakes and asymmetric — *what* survives to Shared Memory determines the signal-to-noise ratio of the substrate every downstream agent reads. Agience provides the governed loop producing clean, attributed artifacts with stable IDs, typed structure, and provenance metadata. FLARE provides the confidentiality boundary so sensitive content can still participate via projections. Downstream agents retrieve, reason over, and act on this knowledge via Context Graph SPARQL queries.
+
+### Adapter pattern for OpenClaw / Hermes / autoresearch agents
+
+The bounty (§4) calls out OpenClaw, Hermes, and comparable long-horizon autonomous research agents as priority integration targets. This integration is **not an OpenClaw plugin or a Hermes fork** — it is the governance substrate those agents plug into. A concrete adapter pattern, buildable in a Round 2 follow-up:
+
+1. **Agent produces an artifact** — OpenClaw drafts a Telegram-orchestrated build note; Hermes-style autoresearch loop emits a research claim with citations; Claude Code sub-agent emits a code-review summary.
+2. **Artifact is deposited as a `draft` Agience card** — typed by the agent itself (`research-note`, `decision`, `code-review`, etc.) via the Agience Core MCP tool surface. Identity carries: the agent's `agience:Person` (or `agience:Agency`), `agience:Authority`, and the originating tool's `agience:MCPClient`.
+3. **Human reviews and commits** in Agience — or a Curator-authority agent does, where policy permits delegated curation.
+4. **`wm-write` fires** with the `commit_receipt_id` already attached. The Knowledge Asset that lands in DKG Working Memory carries the full provenance chain back to the original autonomous agent.
+5. **SHARE happens deliberately** when the agent (or its operator) promotes maturing artifacts to the team-gossiped layer.
+
+This pattern means an OpenClaw or Hermes operator does not have to re-implement governance, identity, or typing — they author into Agience, gain the typed `agience:` substrate for free, and reach DKG with provenance intact. Conversely, single-tool integrations targeting OpenClaw or Hermes directly are complementary to this one, not in competition: they handle the *agent→Agience* leg; this integration handles the *Agience→DKG* leg.
+
+The same pattern composes for Cursor / Claude Code / Claude Desktop sub-agents (write into Agience; project into DKG), for Jupyter / notebook autoresearch kernels (commit cells as artifacts; project derived claims), and for RAG / dRAG pipelines (use DKG as the verifiable upstream after the governance gate — not the noisy raw-doc store).
 
 ---
 
@@ -327,18 +345,39 @@ Every Knowledge Asset written by this package:
 
 ---
 
-## 10. Terminology
+## 10. Terminology Discipline and Mapping
 
-All code and documentation uses exact DKG v10 vocabulary:
+Per bounty §7 (*"Use the established v10 vocabulary exactly. Deviations should be justified in the submission."*) and §8 (design brief must cover terminology choices that deviate from v10 vocabulary).
 
-- **Context Graph** — one per Agience collection
-- **Knowledge Asset** — one per Agience artifact
-- **Working Memory / Shared Memory / Verified Memory** — never "private/public/chain"
-- **SHARE** — promotion from Working Memory to Shared Memory
-- **PUBLISH** — promotion toward Verified Memory (Round 2)
-- **Curator** — the authority required for SHARE/PUBLISH
+### v10 vocabulary used verbatim
 
-The CLI `--layer` flag accepts `wm` / `swm` as usability shorthands. All API responses, documentation, and internal code use the full v10 terms. The Agience-side terms (`collection`, `artifact`, `commit`) are explicitly not treated as DKG synonyms — they are upstream governance concepts.
+- **Context Graph** — the primary scoping primitive; one per Agience collection.
+- **Knowledge Asset** — one per committed Agience artifact.
+- **Knowledge Collection** — the implicit set of Knowledge Assets sharing a `sessionUri`.
+- **Working Memory / Shared Memory / Verified Memory** — never abbreviated to "private/public/chain" in user-facing surfaces.
+- **SHARE** — the promotion operation from Working to Shared Memory.
+- **PUBLISH** — the promotion operation toward Verified Memory (Round 2 path).
+- **Curator** — the authority required for SHARE / PUBLISH; mapped to the Agience commit gate.
+- **UAL** — the stable Knowledge Asset reference; preserved across all promotions.
+- **Entity** — typed `agience:` Person / Authority / Agency / Account artifacts.
+
+### Bidirectional mapping: Agience ↔ DKG v10
+
+| Agience term | DKG v10 term | Relationship |
+|---|---|---|
+| `collection` | **Context Graph** / **Project** | One-to-one. The bounty §7 uses *Projects* ("not Memory Explorer") as the canonical user-facing term. *Agience collection = DKG Project = DKG Context Graph*; we use "collection" in Agience-facing UI and Project / Context Graph in DKG-facing prose, registry copy, and the design brief. |
+| `artifact` (state: `committed`) | **Knowledge Asset** (assertion shape) | One-to-one at projection time. Pre-commit Agience artifacts are out-of-scope for DKG; the gate is the commit. |
+| `artifact` stream per collection | **Knowledge Collection** | Implicit Knowledge Collection scoped by `sessionUri`. Round 2 makes the grouping explicit via multi-asset `dkg.asset.create`. |
+| `Person` / `Authority` / `Authorizer` / `Agency` / `Account` (typed cards) | **Entity** | Each Agience identity card projects as a typed `agience:` Entity, so Knowledge Asset references resolve to first-class graph nodes. |
+| `commit gate` | **Curator authority** | The Agience commit gate IS the Curator surface for projection. Maps onto the v8 staging-paranet curator pattern (`reviewKnowledgeCollection` accept/reject) one-to-one; Round 2 makes this an explicit paranet KC submission policy. |
+| `wm-write` / `promote` (CLI) | **Working Memory write** / **SHARE** | The CLI verbs are usability shorthands for the canonical operations. All API responses, errors, registry copy, and internal logs use the full v10 names. |
+| `--layer wm` / `--layer swm` (CLI flag) | Working Memory / Shared Memory | Shorthand only on the CLI surface; never in the data model or registry. |
+
+### Justified deviations
+
+1. **"Collection" in Agience UI surfaces.** Retained because Agience is a multi-tenant authoring platform with its own user base; renaming the in-product term mid-flight would break onboarding and existing documentation. The DKG-facing surfaces (CLI help, registry entry, design brief, MCP tool descriptions) consistently use *Context Graph* / *Project*.
+2. **`wm` and `swm` shorthands on the CLI.** Conceded for ergonomics on a frequently typed flag; the underlying API and JSON responses always carry the full names.
+3. **`agience:` namespace prefix.** Required to avoid collision with `schema:` and `dkg:` predicates. The vocabulary is documented at <https://agience.ai/ontology/> and is intentionally additive to `schema:` rather than replacing it.
 
 ---
 
