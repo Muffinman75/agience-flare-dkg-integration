@@ -1,18 +1,25 @@
 """Direct HTTP client for the official OriginTrail DKG v10 daemon.
 
-Talks to the daemon's local HTTP API (default ``http://127.0.0.1:9201``) using
-the same endpoint surface adopted by community integrations such as
-``dkg-wm-bridge``:
+Talks to the daemon's local HTTP API (default ``http://127.0.0.1:9201``).
 
-* ``POST /api/assertion/create``                  — create a Working Memory assertion
-* ``POST /api/assertion/{name}/write``            — append quads to it
-* ``POST /api/assertion/{name}/promote``          — Curator-authorized SHARE
-* ``POST /api/shared-memory/write``               — write directly to SWM
-* ``POST /api/query``                             — SPARQL SELECT
-* ``GET  /api/status``                            — health probe
+As of DKG ``v10.0.0-rc.17`` the daemon retired the ``/api/assertion/*`` routes
+in favour of the unified, GitHub-shaped Knowledge Asset surface (OT-RFC-43):
 
-This is the transport a local v10 daemon uses. It is the right path for governed
-authoring → DKG projection because:
+* ``POST /api/knowledge-assets``                       — create KA + open WM draft
+  (atomic: also writes quads, with optional ``finalize``/``alsoShareSwm``/``alsoPublishVm``)
+* ``POST /api/knowledge-assets/{name}/wm/write``       — append quads to the draft
+* ``POST /api/knowledge-assets/{name}/swm/share``      — Curator-authorized SHARE (was ``promote``)
+* ``POST /api/knowledge-assets/{name}/vm/publish``     — mint/update on chain (Verifiable Memory)
+* ``POST /api/shared-memory/write``                    — write directly to SWM (unchanged)
+* ``POST /api/query``                                  — SPARQL SELECT (unchanged)
+* ``GET  /api/status``                                 — health probe (unchanged)
+
+The client defaults to the new ``/api/knowledge-assets`` surface and, if a route
+returns ``404`` (a pre-rc.17 daemon where it does not yet exist), transparently
+falls back **once** to the legacy ``/api/assertion/*`` routes and caches that
+decision — so the same code works against rc.16 and rc.17 daemons alike.
+
+This is the right path for governed authoring → DKG projection because:
 
 1. WM writes do **not** require an on-chain publish — the assertion stays on
    the operator's daemon until ``promote`` is called explicitly.
@@ -126,6 +133,10 @@ class DkgDaemonClient:
         ).rstrip("/")
         self._bearer_token = _resolve_token(bearer_token)
         self._timeout = timeout
+        # Cached daemon capability: None = unprobed, True = rc.17
+        # ``/api/knowledge-assets`` surface, False = pre-rc.17 legacy
+        # ``/api/assertion`` routes. Set on the first WM write / share.
+        self._ka_supported: Optional[bool] = None
 
     # -- internals -------------------------------------------------------------
 
@@ -252,9 +263,10 @@ class DkgDaemonClient:
     def memory_turn(self, request: MemoryTurnRequest) -> MemoryTurnResult:
         """Project a governed Agience artifact onto the daemon.
 
-        * ``layer == 'wm'`` → ``/api/assertion/create`` then ``/write``.
-          The result's ``turn_uri`` is the assertion URI returned by the daemon
-          (``did:dkg:context-graph:.../assertion/.../<name>``).
+        * ``layer == 'wm'`` → ``POST /api/knowledge-assets`` (rc.17: atomic
+          create + write of an unsealed WM draft), with a one-time fallback to
+          the legacy ``/api/assertion/create`` + ``/write`` on pre-rc.17 daemons.
+          The result's ``turn_uri`` is the assertion URI the daemon returns.
         * ``layer == 'swm'`` → ``/api/shared-memory/write`` with
           ``localOnly: true``. The quads land on the daemon's local SWM graph
           and are eligible for an explicit ``promote`` later. ``turn_uri`` is
@@ -295,11 +307,75 @@ class DkgDaemonClient:
                 raw_response=resp,
             )
 
-        # Working Memory path
+        # Working Memory path. Prefer the rc.17 ``/api/knowledge-assets``
+        # surface; fall back once to the legacy ``/api/assertion/*`` routes for
+        # pre-rc.17 daemons (the decision is cached on ``self._ka_supported``).
         assertion_name = _safe_assertion_name(
             request.artifact_id or "",
             request.title or "",
         )
+        if self._ka_supported is not False:
+            result = self._wm_write_knowledge_asset(request, assertion_name, quads)
+            if result is not None:
+                return result
+            # ``None`` ⇒ the KA route 404'd ⇒ legacy daemon; fall through.
+        return self._wm_write_legacy(request, assertion_name, quads)
+
+    def _wm_write_knowledge_asset(
+        self,
+        request: MemoryTurnRequest,
+        assertion_name: str,
+        quads: List[Dict[str, str]],
+    ) -> Optional[MemoryTurnResult]:
+        """rc.17 WM write via ``POST /api/knowledge-assets`` (atomic create+write).
+
+        Sends ``finalize: false`` so the assertion stays an editable, off-chain
+        WM draft (no on-chain identity) that a later ``swm/share`` can promote.
+        Returns a :class:`MemoryTurnResult`, or ``None`` if the route is absent
+        (HTTP 404) so the caller can fall back to the legacy assertion routes.
+        """
+        try:
+            resp = self._post(
+                "/api/knowledge-assets",
+                {
+                    "contextGraphId": request.context_graph_id,
+                    "name": assertion_name,
+                    "quads": quads,
+                    "finalize": False,
+                },
+            )
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                self._ka_supported = False
+                return None
+            return MemoryTurnResult(
+                turn_uri=None,
+                layer="wm",
+                context_graph_id=request.context_graph_id,
+                status="pending",
+                error=f"knowledge-asset write failed: {exc.response.status_code}",
+                raw_response={"error": (exc.response.text or "")[:500]},
+            )
+        self._ka_supported = True
+        assertion_uri = resp.get("assertionUri") or (
+            f"did:dkg:context-graph:{request.context_graph_id}/{assertion_name}"
+        )
+        return MemoryTurnResult(
+            turn_uri=assertion_uri,
+            layer="wm",
+            context_graph_id=request.context_graph_id,
+            status="anchored",
+            error=None,
+            raw_response={"knowledgeAsset": resp},
+        )
+
+    def _wm_write_legacy(
+        self,
+        request: MemoryTurnRequest,
+        assertion_name: str,
+        quads: List[Dict[str, str]],
+    ) -> MemoryTurnResult:
+        """Pre-rc.17 WM write via ``/api/assertion/create`` then ``/write``."""
         try:
             create_resp = self._post(
                 "/api/assertion/create",
@@ -352,11 +428,40 @@ class DkgDaemonClient:
     ) -> AssertionPromoteResult:
         """Curator-authorized SHARE: promote a WM assertion to Shared Memory.
 
-        Calls ``POST /api/assertion/{name}/promote`` on the daemon, which
-        copies the assertion's quads onto the Context Graph's shared-memory
-        view. This is the Round 1 demo path; on-chain Verified Memory is
-        Round 2.
+        rc.17 renamed ``promote`` → ``share``: calls
+        ``POST /api/knowledge-assets/{name}/swm/share``, which copies the
+        assertion's quads onto the Context Graph's shared-memory view. Falls
+        back once to the legacy ``POST /api/assertion/{name}/promote`` on
+        pre-rc.17 daemons. On-chain Verifiable Memory is :meth:`vm_publish`.
         """
+        if self._ka_supported is not False:
+            try:
+                resp = self._post(
+                    f"/api/knowledge-assets/{request.name}/swm/share",
+                    {
+                        "contextGraphId": request.context_graph_id,
+                        "entities": request.entities or "all",
+                    },
+                )
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    self._ka_supported = False
+                else:
+                    return AssertionPromoteResult(
+                        ok=False,
+                        name=request.name,
+                        raw_response={
+                            "error": exc.response.text[:500],
+                            "status": exc.response.status_code,
+                        },
+                    )
+            else:
+                self._ka_supported = True
+                return AssertionPromoteResult(
+                    ok=True, name=request.name, raw_response=resp
+                )
+
+        # Legacy fallback (pre-rc.17 daemons).
         try:
             resp = self._post(
                 f"/api/assertion/{request.name}/promote",
@@ -375,6 +480,46 @@ class DkgDaemonClient:
                 },
             )
         return AssertionPromoteResult(ok=True, name=request.name, raw_response=resp)
+
+    def vm_publish(
+        self,
+        *,
+        name: str,
+        context_graph_id: str,
+        sub_graph_name: Optional[str] = None,
+        publish_epochs: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Publish a finalized + shared KA to Verifiable Memory (on-chain).
+
+        rc.17 only: ``POST /api/knowledge-assets/{name}/vm/publish``. Mints (or
+        updates) the Knowledge Asset on chain and returns the daemon's publish
+        receipt (``{kaId, status, ual, txHash, merkleRoot, ...}``).
+
+        Preconditions enforced by the daemon: the assertion must be **finalized**
+        (sealed via ``wm/finalize``) and **shared** to SWM, the Context Graph
+        must be on-chain registered, and the node needs gas + TRAC and a reliable
+        chain RPC. Returns ``{"ok": False, "error": ...}`` on failure rather than
+        raising, so callers can treat VM publish as best-effort.
+        """
+        body: Dict[str, Any] = {"contextGraphId": context_graph_id}
+        options: Dict[str, Any] = {}
+        if sub_graph_name:
+            body["subGraphName"] = sub_graph_name
+        if publish_epochs is not None:
+            options["publishEpochs"] = publish_epochs
+        if options:
+            body["options"] = options
+        try:
+            resp = self._post(
+                f"/api/knowledge-assets/{name}/vm/publish", body
+            )
+        except httpx.HTTPStatusError as exc:
+            return {
+                "ok": False,
+                "status": exc.response.status_code,
+                "error": (exc.response.text or "")[:500],
+            }
+        return {"ok": resp.get("status") == "confirmed", **resp}
 
     def memory_search(self, request: MemorySearchRequest) -> MemorySearchResult:
         """Search Working / Shared Memory via SPARQL ``POST /api/query``.

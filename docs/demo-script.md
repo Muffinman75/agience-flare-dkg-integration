@@ -1,6 +1,6 @@
 # Demo Script — Agience FLARE × DKG v10 Integration
 
-> **Note (v0.4.0):** This script is the legacy MCP-flow walkthrough preserved for reference. The active recording guide is [`demo-recording-guide.md`](demo-recording-guide.md), which leads with the daemon transport that became default in v0.4.0. Test counts and version numbers below are kept in sync, but the narration here describes the MCP transport explicitly.
+> **Note (v0.4.0):** This script is the legacy MCP-flow walkthrough preserved for reference. The active recording guide is [`demo-recording-guide.md`](demo-recording-guide.md), which leads with the daemon transport that became default in v0.4.0 and is updated for DKG `v10.0.0-rc.17` (unified `/api/knowledge-assets` surface, Oxigraph pre-seed, one-time store wipe). Test counts and version numbers below are kept in sync, but the narration here describes the MCP transport explicitly.
 
 ## Goal
 
@@ -138,7 +138,7 @@ Narrate: "Any MCP-capable agent — Claude Desktop, Cursor, Claude Code — can 
 ## Scene 7: Run the full test suite
 
 ```bash
-# Unit tests (75 tests, no live node needed)
+# Unit tests (79 tests, no live node needed)
 pytest package/tests/unit -v
 
 # Integration tests (requires live DKG node)
@@ -148,9 +148,9 @@ DKG_CONTEXT_GRAPH=agience-test \
 pytest package/tests/integration -v
 ```
 
-Expected output: `75 passed` (unit) + `5 passed` (integration).
+Expected output: `79 passed` (unit) + `5 passed` (integration).
 
-Narrate: "75 unit tests cover the MCP server tool definitions and message routing, the daemon HTTP client (15 tests: token resolution, WM/SWM write, promote, SPARQL with `GRAPH ?g` traversal), typed JSON-LD generation with the agience vocabulary, error status detection, client operations, Pydantic models, the formatter, the Agience client governance gate (only `committed` artifacts may be projected), and the governed CLI flow. 5 integration tests run end-to-end against a live DKG v10 daemon or MCP-fronted node."
+Narrate: "79 unit tests cover the MCP server tool definitions and message routing, the daemon HTTP client (token resolution, WM/SWM write, promote/share, the rc.17 `/api/knowledge-assets` surface + one-time `404` legacy fallback, `vm_publish`, SPARQL with `GRAPH ?g` traversal), typed JSON-LD generation with the agience vocabulary, error status detection, client operations, Pydantic models, the formatter, the Agience client governance gate (only `committed` artifacts may be projected), and the governed CLI flow. 5 integration tests run end-to-end against a live DKG v10 daemon or MCP-fronted node."
 
 ---
 
@@ -176,7 +176,7 @@ Narrate: "FLARE provides the cryptographic confidentiality boundary. When an Agi
 - [ ] typed `agience:` JSON-LD vocabulary is shown and explained
 - [ ] `turn_uri` from wm-write is shown being passed to promote
 - [ ] blockchain anchoring state (`status: anchored` vs `pending`) is addressed
-- [ ] unit test run shows 60 passed
+- [ ] unit test run shows 79 passed
 - [ ] integration test run shows 5 passed
 - [ ] FLARE is referenced (test suite or paper)
 - [ ] no competitor submissions are mentioned

@@ -111,15 +111,15 @@ def test_resolve_token_falls_back_to_dkg_token(tmp_path, monkeypatch) -> None:
 # ----------------------------------------------------------------------------
 
 
-def test_memory_turn_wm_creates_assertion_and_writes_quads() -> None:
-    create_resp = {
-        "assertionUri": "did:dkg:context-graph:cg-1/assertion/0xWALLET/adr-1-Title",
+def test_memory_turn_wm_creates_knowledge_asset_and_writes_quads() -> None:
+    ka_resp = {
+        "name": "adr-1-Title",
+        "assertionUri": "did:dkg:context-graph:cg-1/adr-1-Title",
+        "alreadyExists": False,
+        "status": "draft-open",
+        "written": 8,
     }
-    write_resp = {"written": 8}
-    client = _StubDaemonClient(post_responses={
-        "/api/assertion/create": create_resp,
-        "/api/assertion/adr-1-Title/write": write_resp,
-    })
+    client = _StubDaemonClient(post_responses={"/api/knowledge-assets": ka_resp})
 
     request = MemoryTurnRequest(
         contextGraphId="cg-1",
@@ -134,53 +134,45 @@ def test_memory_turn_wm_creates_assertion_and_writes_quads() -> None:
     assert result.layer == "wm"
     assert result.status == "anchored"
     assert result.error is None
-    assert result.turn_uri == create_resp["assertionUri"]
+    assert result.turn_uri == ka_resp["assertionUri"]
+    assert client._ka_supported is True
 
+    # A single atomic create+write call to the rc.17 KA surface.
+    assert len(client.posts) == 1
     create_call = client.posts[0]
-    assert create_call[0] == "/api/assertion/create"
+    assert create_call[0] == "/api/knowledge-assets"
     assert create_call[1]["contextGraphId"] == "cg-1"
     assert create_call[1]["name"] == "adr-1-Title"
-
-    write_call = client.posts[1]
-    assert write_call[0] == "/api/assertion/adr-1-Title/write"
-    assert write_call[1]["contextGraphId"] == "cg-1"
-    quads = write_call[1]["quads"]
+    # WM-only draft: never seal on a plain wm-write.
+    assert create_call[1]["finalize"] is False
+    quads = create_call[1]["quads"]
     assert any(q["predicate"].endswith("memoryLayer") for q in quads)
     assert any(q["object"] == '"alice"' for q in quads)
 
 
 def test_memory_turn_wm_handles_already_exists() -> None:
-    """Re-running the same artifact should still write quads after a 4xx 'already exists'."""
-    write_resp = {"written": 5}
-    client = _StubDaemonClient(
-        post_errors={"/api/assertion/create": 409},
-        post_responses={"/api/assertion/already-exists/write": write_resp},
-    )
+    """rc.17 surfaces re-runs natively via alreadyExists; still anchored."""
+    ka_resp = {
+        "name": "already-exists",
+        "assertionUri": "did:dkg:context-graph:cg-1/already-exists",
+        "alreadyExists": True,
+        "status": "draft-open",
+        "written": 5,
+    }
+    client = _StubDaemonClient(post_responses={"/api/knowledge-assets": ka_resp})
 
-    # Override the stubbed exception body with the keyword the client looks for
-    def _post_with_exists(path: str, body: Dict[str, Any]) -> Dict[str, Any]:
-        client.posts.append((path, body))
-        if path == "/api/assertion/create":
-            request = httpx.Request("POST", f"{client.base_url}{path}")
-            response = httpx.Response(409, text="assertion already exists", request=request)
-            raise httpx.HTTPStatusError("conflict", request=request, response=response)
-        return write_resp
-
-    client._post = _post_with_exists  # type: ignore[assignment]
-
-    request = MemoryTurnRequest(
+    result = client.memory_turn(MemoryTurnRequest(
         contextGraphId="cg-1",
         markdown="body",
         artifactId="already",
         title="exists",
-    )
-    result = client.memory_turn(request)
+    ))
     assert result.status == "anchored"
     assert "already-exists" in (result.turn_uri or "")
 
 
-def test_memory_turn_wm_returns_pending_on_create_failure() -> None:
-    client = _StubDaemonClient(post_errors={"/api/assertion/create": 500})
+def test_memory_turn_wm_returns_pending_on_ka_failure() -> None:
+    client = _StubDaemonClient(post_errors={"/api/knowledge-assets": 500})
 
     result = client.memory_turn(MemoryTurnRequest(
         contextGraphId="cg-1",
@@ -191,6 +183,39 @@ def test_memory_turn_wm_returns_pending_on_create_failure() -> None:
     assert result.status == "pending"
     assert result.error is not None
     assert "500" in result.error
+
+
+def test_memory_turn_wm_falls_back_to_legacy_on_404() -> None:
+    """A pre-rc.17 daemon (no KA route) falls back to /api/assertion/*."""
+    create_resp = {
+        "assertionUri": "did:dkg:context-graph:cg-1/assertion/0xWALLET/adr-1-Title",
+    }
+
+    def _post(path: str, body: Dict[str, Any]) -> Dict[str, Any]:
+        client.posts.append((path, body))
+        if path == "/api/knowledge-assets":
+            request = httpx.Request("POST", f"{client.base_url}{path}")
+            response = httpx.Response(404, text="not found", request=request)
+            raise httpx.HTTPStatusError("nf", request=request, response=response)
+        if path == "/api/assertion/create":
+            return create_resp
+        return {"written": 8}
+
+    client = _StubDaemonClient()
+    client._post = _post  # type: ignore[assignment]
+
+    result = client.memory_turn(MemoryTurnRequest(
+        contextGraphId="cg-1",
+        markdown="body",
+        artifactId="adr-1",
+        title="Title",
+    ))
+    assert result.status == "anchored"
+    assert client._ka_supported is False
+    paths = [p for p, _ in client.posts]
+    assert paths[0] == "/api/knowledge-assets"
+    assert "/api/assertion/create" in paths
+    assert any(p.endswith("/write") for p in paths)
 
 
 # ----------------------------------------------------------------------------
@@ -238,20 +263,67 @@ def test_memory_turn_swm_pending_on_failure() -> None:
 # ----------------------------------------------------------------------------
 
 
-def test_assertion_promote_calls_promote_endpoint() -> None:
+def test_assertion_promote_calls_share_endpoint() -> None:
     client = _StubDaemonClient(post_responses={
-        "/api/assertion/abc-123/promote": {"ok": True, "graph": "swm"},
+        "/api/knowledge-assets/abc-123/swm/share": {"swmShared": True, "promotedCount": 4},
     })
     result = client.assertion_promote(AssertionPromoteRequest(name="abc-123", contextGraphId="cg-1"))
     assert result.ok is True
     assert result.name == "abc-123"
-    assert client.posts[0][0] == "/api/assertion/abc-123/promote"
+    assert client.posts[0][0] == "/api/knowledge-assets/abc-123/swm/share"
+    assert client._ka_supported is True
 
 
 def test_assertion_promote_marks_failure() -> None:
-    client = _StubDaemonClient(post_errors={"/api/assertion/abc-123/promote": 500})
+    client = _StubDaemonClient(post_errors={"/api/knowledge-assets/abc-123/swm/share": 500})
     result = client.assertion_promote(AssertionPromoteRequest(name="abc-123", contextGraphId="cg-1"))
     assert result.ok is False
+
+
+def test_assertion_promote_falls_back_to_legacy_on_404() -> None:
+    def _post(path: str, body: Dict[str, Any]) -> Dict[str, Any]:
+        client.posts.append((path, body))
+        if path.endswith("/swm/share"):
+            request = httpx.Request("POST", f"{client.base_url}{path}")
+            response = httpx.Response(404, text="nf", request=request)
+            raise httpx.HTTPStatusError("nf", request=request, response=response)
+        return {"ok": True}
+
+    client = _StubDaemonClient()
+    client._post = _post  # type: ignore[assignment]
+
+    result = client.assertion_promote(AssertionPromoteRequest(name="abc-123", contextGraphId="cg-1"))
+    assert result.ok is True
+    assert client._ka_supported is False
+    paths = [p for p, _ in client.posts]
+    assert paths[0] == "/api/knowledge-assets/abc-123/swm/share"
+    assert paths[1] == "/api/assertion/abc-123/promote"
+
+
+# ----------------------------------------------------------------------------
+# vm_publish (Verifiable Memory — rc.17)
+# ----------------------------------------------------------------------------
+
+
+def test_vm_publish_confirmed() -> None:
+    client = _StubDaemonClient(post_responses={
+        "/api/knowledge-assets/abc-123/vm/publish": {
+            "kaId": "42", "status": "confirmed",
+            "ual": "did:dkg:base:84532/0xKA/42", "txHash": "0xabc",
+        },
+    })
+    result = client.vm_publish(name="abc-123", context_graph_id="cg-1")
+    assert result["ok"] is True
+    assert result["ual"].endswith("/42")
+    assert client.posts[0][0] == "/api/knowledge-assets/abc-123/vm/publish"
+    assert client.posts[0][1]["contextGraphId"] == "cg-1"
+
+
+def test_vm_publish_reports_failure() -> None:
+    client = _StubDaemonClient(post_errors={"/api/knowledge-assets/abc-123/vm/publish": 502})
+    result = client.vm_publish(name="abc-123", context_graph_id="cg-1")
+    assert result["ok"] is False
+    assert result["status"] == 502
 
 
 # ----------------------------------------------------------------------------

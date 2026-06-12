@@ -12,15 +12,18 @@ DKG v10 provides the shared memory substrate. But what gets written there matter
 
 - **Agience Core** — governed authoring: typed artifacts, versioned collections, human-review commit gates, provenance receipts, 11-tool MCP server, 8 agent persona servers. DKG receipt schemas and policy routing are built directly into the platform.
 - **FLARE** — confidential retrieval: AES-256-GCM encrypted vector search with Shamir K-of-M threshold oracle, Ed25519 signed grant ledger, light-cone graph authorization. 101 tests, 95.6% recall vs plaintext FAISS.
-- **DKG v10** — open verifiable memory: Working Memory → Shared Memory → Verified Memory.
+- **DKG v10** — open verifiable memory: Working Memory → Shared Memory → Verifiable Memory.
+
+> **DKG v10 rc.17 note.** As of `v10.0.0-rc.17` the daemon retired the `/api/assertion/*` routes in favour of one unified `/api/knowledge-assets` surface (OT-RFC-43), and ships redeployed contracts + a new local graph storage layout (a one-time store wipe is required on upgrade — wallet, identity, and on-chain assets are safe). This package defaults to the new surface and falls back **once** to the legacy assertion routes if a pre-rc.17 daemon returns `404`, so the same code works against rc.16 and rc.17 alike. See [`docs/UPGRADE_TO_RC17`](https://github.com/OriginTrail/dkg/blob/main/docs/UPGRADE_TO_RC17.md).
 
 ## What this package does
 
-- **Default transport — local DKG v10 daemon HTTP API.** Direct HTTP to `http://127.0.0.1:9201` (`/api/assertion/create`, `/api/assertion/{name}/write`, `/api/assertion/{name}/promote`, `/api/query`). Bearer token auto-read from `~/.dkg/auth.token`. WM writes do not require an on-chain publish.
+- **Default transport — local DKG v10 daemon HTTP API.** Direct HTTP to `http://127.0.0.1:9201` (rc.17 unified surface: `POST /api/knowledge-assets`, `POST /api/knowledge-assets/{name}/wm/write`, `POST /api/knowledge-assets/{name}/swm/share`, `POST /api/knowledge-assets/{name}/vm/publish`, `POST /api/query`). Bearer token auto-read from `~/.dkg/auth.token`. WM writes do not require an on-chain publish. Transparent one-time `404` fallback to the legacy `/api/assertion/*` routes for pre-rc.17 daemons.
 - **Alternative transport — MCP Streamable HTTP.** Speaks JSON-RPC over SSE to a DKG node's `POST /mcp` endpoint (e.g. one fronted by `dkg mcp setup`). Selected per-call via `--transport mcp` or `DKG_TRANSPORT=mcp`.
 - **MCP stdio server** (`agience-dkg-mcp`) — exposes `agience_wm_write`, `agience_promote`, `agience_search` tools for Claude Desktop, Cursor, Claude Code, and any MCP host. Talks to either transport.
 - Writes committed Agience artifacts to DKG v10 **Working Memory** as typed `agience:` RDF Knowledge Assets — SPARQL-queryable by type, author, collection, and memory layer. Daemon transport sends N-Triples-style quads; MCP transport sends the equivalent JSON-LD shape; both encode the same predicate set.
-- Promotes eligible assets to **Shared Memory** (SHARE) — daemon: `POST /api/assertion/{name}/promote`; MCP: `dkg-create` with `privacy=public`. Curator-authority, never automatic.
+- Promotes eligible assets to **Shared Memory** (SHARE) — daemon: `POST /api/knowledge-assets/{name}/swm/share` (the rc.17 rename of `promote`); MCP: `dkg-create` with `privacy=public`. Curator-authority, never automatic.
+- Publishes finalized assets to **Verifiable Memory** (on-chain) — daemon-only: `POST /api/knowledge-assets/{name}/vm/publish`, surfaced as the `agience-dkg vm-publish` CLI command. Best-effort: a failed on-chain publish still prints its receipt for diagnosis and writes back the live UAL/stage to Agience.
 - Searches across memory layers — daemon: SPARQL `SELECT` over `POST /api/query` with `GRAPH ?g` traversal of named sub-graphs; MCP: `dkg-sparql-query` with the same predicate set.
 - Groups all artifacts under a stable `sessionUri` for oracle-queryable Context Graph scoping.
 - Distinguishes transport success from blockchain anchoring state (`status: anchored` vs `status: pending`).
@@ -35,7 +38,7 @@ DKG v10 provides the shared memory substrate. But what gets written there matter
 | **Sensitive content** | Omitted or manually redacted | Physically encrypted by FLARE (AES-256-GCM per-cell, Shamir threshold oracle key issuance); only derived projections reach DKG |
 | **Knowledge Asset structure** | Generic `schema:Article` or flat JSON | Typed `agience:` RDF vocabulary with 8+ SPARQL-queryable predicates across Context Graphs |
 | **Provenance** | None or ad-hoc | Seven receipt types (commit, grant, revoke, access, projection, publication, provenance) generated on every commit |
-| **Test coverage** | Package-level tests | 187 tests across 4 suites: integration package (75 unit + 5 integration), Agience Core DKG service (6), FLARE (101) |
+| **Test coverage** | Package-level tests | 191 tests across 4 suites: integration package (79 unit + 5 integration), Agience Core DKG service (6+), FLARE (101) |
 
 ## Install
 
@@ -78,7 +81,7 @@ This exposes three tools: `agience_wm_write`, `agience_promote`, `agience_search
 
 ```bash
 # 1) Install the official DKG v10 daemon (one-time)
-npm install -g @origintrail-official/dkg
+npm install -g @origintrail-official/dkg   # installs v10.0.0-rc.17+
 dkg init                       # writes ~/.dkg/auth.token
 DKG_PORT=9201 dkg start        # 9201 avoids the Windows Elasticsearch :9200 collision
 
@@ -98,7 +101,14 @@ agience-dkg wm-write \
 
 agience-dkg promote <turnUri-from-above> --context-graph-id agience-demo
 agience-dkg search "architecture decisions" --context-graph-id agience-demo
+
+# (Optional, on-chain) publish a finalized asset to Verifiable Memory — daemon only
+agience-dkg vm-publish <turnUri-from-above> --context-graph-id agience-demo
 ```
+
+> **First run on rc.17 (one-time).** rc.17 is a breaking change: it redeploys contracts and uses a new local graph storage layout, so do the one-time store wipe per [`UPGRADE_TO_RC17`](https://github.com/OriginTrail/dkg/blob/main/docs/UPGRADE_TO_RC17.md) (wallet/identity/on-chain assets are safe). The daemon also downloads an Oxigraph binary into `~/.dkg/oxigraph/` on first start; if your network blocks that download the daemon appears to hang on boot — pre-seed the binary manually (place the matching `oxigraph-vX.Y.Z` executable in `~/.dkg/oxigraph/` and verify its SHA-256) to unblock startup. A `401 Unauthorized` from `GET /health` once it is up is the healthy "listening" signal.
+
+> **Verifiable Memory (VM) caveats.** `vm-publish` is **daemon-only** (no MCP equivalent), requires the asset to be finalized and shared to SWM first, and the Context Graph must be on-chain registered with gas + TRAC and a reliable RPC. Known daemon bug: publishing to a **public** Context Graph (access-policy 0) fails with `NO_DATA_IN_SWM` — use a **private** Context Graph (access-policy 1) for VM smoke tests.
 
 The default transport is **daemon** — direct HTTP to your local DKG v10 daemon at `http://127.0.0.1:9201`. The bearer token is auto-read from `~/.dkg/auth.token`, so you don't have to set one. WM writes do **not** require an on-chain publish, so the demo runs fully local — no TRAC staking, no testnet RPC.
 
@@ -163,9 +173,9 @@ package/                Python package source (agience_dkg_integration)
       daemon_client.py  DkgDaemonClient — direct HTTP to local DKG v10 daemon
       models.py         Pydantic request/response models with artifact metadata
       formatter.py      artifact_to_markdown, session_uri_for_collection
-      cli.py            agience-dkg CLI (wm-write, promote, search; --transport switch)
+      cli.py            agience-dkg CLI (wm-write, promote, vm-publish, search; --transport switch)
   tests/
-    unit/               75 unit tests (governance gate, both transports, MCP server, JSON-LD, models)
+    unit/               79 unit tests (governance gate, both transports, rc.17 KA surface + 404 fallback, vm_publish, MCP server, JSON-LD, models)
     integration/        5 live-node integration tests
 docs/
   security-notes.md
@@ -178,16 +188,18 @@ LICENSE                 MIT
 ```
 
 **Parent platform repositories** (DKG models and FLARE integration are part of the same body of work):
-- [Agience Core](https://github.com/Agience/agience-core) — `backend/api/dkg_integration.py` (receipt schemas), `backend/services/dkg_integration_service.py` (policy mapping, projection validation), 6 DKG service tests
+- [Agience Core](https://github.com/Agience/agience-core) — `backend/api/dkg_integration.py` (receipt schemas), `backend/services/dkg_integration_service.py` (policy mapping, projection validation + DKG projection read model), `frontend/src/components/workspace/DkgProjectionPanel.tsx` (DKG projection panel), DKG service tests
 - [FLARE Index](https://github.com/Agience/flare-index) — 101-test encrypted vector search, [research paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md)
+
+> **Fork note.** All `agience-core` and `flare-index` changes for this integration live on the author's forks ([github.com/Muffinman75](https://github.com/Muffinman75)), not the upstream `Agience/*` repos. Use the forks to review or reproduce the DKG projection read model, the `DkgProjectionPanel` UI, and the projection/publication endpoints referenced here.
 
 ## Test coverage
 
 | Suite | Count | Requires DKG node |
 |---|---|---|
-| Integration package unit tests | 75 | No |
+| Integration package unit tests | 79 | No |
 | Integration package integration tests | 5 | Yes |
-| Agience Core DKG service tests | 6 | No |
+| Agience Core DKG service tests | 6+ | No |
 | FLARE test suite | 101 | No (Docker only) |
 
 ```bash

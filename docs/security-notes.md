@@ -50,13 +50,16 @@ Every DKG endpoint invoked by this package, across both supported public interfa
 
 | Endpoint | Operation | Authority |
 |---|---|---|
-| `GET /health` | Health check | Read-only |
-| `POST /api/assertion/create` | Create assertion under a Context Graph | Write (WM) |
-| `POST /api/assertion/{name}/write` | Write JSON-LD body of an assertion | Write (WM) |
-| `POST /api/shared-memory/write` (`localOnly=true`) | Write Working Memory layer | Write (WM) |
+| `GET /api/status` / `GET /health` | Health check | Read-only |
+| `POST /api/knowledge-assets` | Create KA + open WM draft (atomic create+write) | Write (WM) |
+| `POST /api/knowledge-assets/{name}/wm/write` | Append quads to the WM draft | Write (WM) |
+| `POST /api/shared-memory/write` (`localOnly=true`) | Write Working Memory layer (direct SWM path) | Write (WM) |
 | `POST /api/shared-memory/write` (`localOnly=false`) | Write Shared Memory layer | **Curator-authorized (SHARE)** |
-| `POST /api/assertion/{name}/promote` | Promote Working → Shared Memory | **Curator-authorized (SHARE)** |
-| `POST /api/query` | SPARQL search across named assertion sub-graphs | Read-only |
+| `POST /api/knowledge-assets/{name}/swm/share` | Promote Working → Shared Memory (rc.17 rename of `promote`) | **Curator-authorized (SHARE)** |
+| `POST /api/knowledge-assets/{name}/vm/publish` | Publish to Verifiable Memory (on-chain) | **Curator-authorized (PUBLISH)** |
+| `POST /api/query` | SPARQL search across named sub-graphs | Read-only |
+
+_As of DKG `v10.0.0-rc.17` the daemon retired the `/api/assertion/*` routes for this unified `/api/knowledge-assets` surface (OT-RFC-43). The client falls back **once** to the legacy `/api/assertion/create`, `/api/assertion/{name}/write`, and `/api/assertion/{name}/promote` routes only if a pre-rc.17 daemon returns `404`._
 
 ### MCP Streamable HTTP
 
@@ -69,7 +72,7 @@ Every DKG endpoint invoked by this package, across both supported public interfa
 
 All SHARE operations are **always explicit and operator-initiated** — invoked only by the `agience-dkg promote` CLI command or the `agience_promote` MCP tool, never as a side effect of a write.
 
-PUBLISH toward Verified Memory is not invoked in this Round 1 package.
+PUBLISH toward Verifiable Memory is likewise **always explicit and operator-initiated** — invoked only by the `agience-dkg vm-publish` CLI command (daemon transport only; no MCP equivalent, no background loop). It is never triggered by a WM write or SHARE.
 
 ## MCP stdio server
 
@@ -77,7 +80,7 @@ The `agience-dkg-mcp` entry point runs as an MCP stdio server. It reads `DKG_TOK
 
 ## Curator authority stance
 
-No SHARE or PUBLISH operation is invoked without explicit caller intent. The CLI `promote` command requires the operator to pass a `turnUri` and `context_graph_id` explicitly, and maps to either `POST /api/assertion/{name}/promote` (daemon transport) or `dkg-create` with `privacy=public` (MCP transport) — there is no background promotion loop.
+No SHARE or PUBLISH operation is invoked without explicit caller intent. The CLI `promote` command requires the operator to pass a `turnUri` and `context_graph_id` explicitly, and maps to either `POST /api/knowledge-assets/{name}/swm/share` (daemon transport, rc.17; legacy `POST /api/assertion/{name}/promote` only on `404` fallback) or `dkg-create` with `privacy=public` (MCP transport) — there is no background promotion loop. The `vm-publish` command similarly requires an explicit `turnUri` and on-chain-registered `context_graph_id`, and maps to `POST /api/knowledge-assets/{name}/vm/publish` (daemon only).
 
 ## Dynamic code loading
 

@@ -1,10 +1,12 @@
 # Demo Recording Guide — Agience × DKG v10 Integration
 
-**Last updated:** 2026-05-23 (post-daemon-integration; v0.4.0)
+**Last updated:** 2026-06-12 (DKG v10.0.0-rc.17; v0.4.0)
+
+> **Fork note.** All `agience-core` and `flare-index` changes shown in this guide (DKG projection read model, the `DkgProjectionPanel` UI, projection/publication endpoints) live on the author's forks at [github.com/Muffinman75](https://github.com/Muffinman75), not the upstream `Agience/*` repos. Check out the forks to reproduce the UI and backend behaviour described here.
 
 This is the practical, scene-by-scene shooting script for the bounty submission video. It reflects the flow proved end-to-end on 2026-05-23 against the official OriginTrail v10 daemon: an OpenAI-powered LLM in Agience generates an Architecture Decision Record, a human commits it through Agience's governance boundary, and the integration projects it as a typed `agience:` Knowledge Asset directly into the local DKG v10 daemon — refusing to project anything still in `draft`.
 
-> **🎥 Recording plan for v0.4.0 — single daemon demo.** Re-record Scenes 2 (services), 4 (governance refusal), 6 (successful daemon write), 7 (file reference: `daemon_client.py`), 8 (test count `75 passed`). Scenes 1, 3, 5, 9, 10 can be reused if their narration still aligns with the daemon-first framing.
+> **🎥 Recording plan for v0.4.0 — single daemon demo.** Re-record Scenes 2 (services), 4 (governance refusal), 6 (successful daemon write), 7 (file reference: `daemon_client.py`), 8 (test count `79 passed`). Scenes 1, 3, 5, 9, 10 can be reused if their narration still aligns with the daemon-first framing.
 >
 > **MCP transport is supported on the same code path** (`--transport mcp`, see Scene 7 narration and the README). Reviewers can exercise it themselves by pointing `DKG_BASE_URL` at an MCP-fronted DKG node once their side is reachable — no separate video is recorded, because the governance gate, JSON-LD payload shape, and CLI surface are transport-independent. This mirrors RepNet's single-flow recording posture.
 
@@ -33,10 +35,12 @@ If `OPENAI_API_KEY` isn't there, add the line. Aria's chat handler reads this on
 Install and start the official OriginTrail v10 daemon in WSL:
 
 ```bash
-npm install -g @origintrail-official/dkg
+npm install -g @origintrail-official/dkg   # v10.0.0-rc.17+
 dkg init           # one-time; writes ~/.dkg/auth.token
 DKG_PORT=9201 dkg start   # 9200 collides with Windows Elasticsearch; use 9201
 ```
+
+> **rc.17 one-time upgrade (do once, before the first start).** rc.17 redeploys contracts and changes the local graph storage layout, so do the one-time store wipe per [`UPGRADE_TO_RC17`](https://github.com/OriginTrail/dkg/blob/main/docs/UPGRADE_TO_RC17.md) (wallet/identity/on-chain assets are safe). On first start the daemon also downloads an **Oxigraph** binary into `~/.dkg/oxigraph/`. If your network blocks that download the daemon **appears to hang on boot with no error** — pre-seed it: download the matching `oxigraph-vX.Y.Z` executable, verify its SHA-256, and drop it into `~/.dkg/oxigraph/` before `dkg start`. (Reference values used on this machine: `oxigraph-v0.5.8.exe`, SHA-256 `9c847300f440e4571a41957d9f9d54272a52baa703b27267a1ab0ede2ca513f6`.)
 
 Verify:
 
@@ -244,19 +248,22 @@ Expected output (real, captured 2026-05-23):
 
 ```json
 {
-  "turn_uri": "did:dkg:context-graph:agience-demo/assertion/0x6863…/<artifactId>-ADR-DKG-v10-as-Verifiable-Memory-Substrate",
+  "turn_uri": "did:dkg:context-graph:agience-demo/<artifactId>-ADR-DKG-v10-as-Verifiable-Memory-Substrate",
   "layer": "wm",
   "context_graph_id": "agience-demo",
   "status": "anchored",
   "error": null,
   "raw_response": {
-    "create": { "assertionUri": "did:dkg:context-graph:agience-demo/assertion/..." },
-    "write":  { "written": 8 }
+    "assertionUri": "did:dkg:context-graph:agience-demo/...",
+    "status": "WM_DRAFT",
+    "written": 8
   }
 }
 ```
 
-Narrate while it runs: *"The CLI fetches the committed artifact from Agience, builds a typed `agience:` RDF Knowledge Asset — `agience:decision` as the type, predicates for author, tags, collection, memory layer — attaches the commit receipt ID, and POSTs it as quads through `daemon_client.py` to the local DKG v10 daemon: first `POST /api/assertion/create`, then `POST /api/assertion/<name>/write`. The MCP transport sends the same predicate set as JSON-LD — we'll see both side by side in Scene 7."*
+> rc.17: this is a single atomic `POST /api/knowledge-assets` (create + write of an unsealed WM draft, `finalize:false`). On a pre-rc.17 daemon the client transparently falls back to the legacy two-call `POST /api/assertion/create` + `POST /api/assertion/{name}/write` and the `raw_response` shows the `create`/`write` pair instead.
+
+Narrate while it runs: *"The CLI fetches the committed artifact from Agience, builds a typed `agience:` RDF Knowledge Asset — `agience:decision` as the type, predicates for author, tags, collection, memory layer — attaches the commit receipt ID, and POSTs it as quads through `daemon_client.py` to the local DKG v10 daemon. On rc.17 that's one atomic call to the new `POST /api/knowledge-assets` surface, which opens an off-chain Working Memory draft with a single stable UAL. The MCP transport sends the same predicate set as JSON-LD — we'll see both side by side in Scene 7."*
 
 When it returns: *"Anchored. Eight RDF quads written. The Knowledge Asset has a stable assertion URI under the Context Graph and is immediately SPARQL-queryable. No testnet RPC was involved — this is the daemon's own local store."*
 
@@ -303,7 +310,7 @@ quads: List[Dict[str, str]] = [
 # ... agience:author, agience:tags, agience:collection, agience:commitReceiptId etc. conditionally appended below
 ```
 
-Narrate: *"Two transports, one RDF model. On the left, the MCP path sends JSON-LD — `@type: agience:decision`, plus the typed `agience:` predicates. On the right, the daemon path sends the equivalent N-Triples quads to `/api/assertion/create` and `/api/assertion/{name}/write`. Same `agience:` namespace, same predicate set, same SPARQL-queryable shape on the other side — only the wire format differs. Not a generic `schema:Article`: any agent can SPARQL-query for `?x a agience:decision` across organisations and get back governed, attested artifacts."*
+Narrate: *"Two transports, one RDF model. On the left, the MCP path sends JSON-LD — `@type: agience:decision`, plus the typed `agience:` predicates. On the right, the daemon path sends the equivalent N-Triples quads to the rc.17 `POST /api/knowledge-assets` surface. Same `agience:` namespace, same predicate set, same SPARQL-queryable shape on the other side — only the wire format differs. Not a generic `schema:Article`: any agent can SPARQL-query for `?x a agience:decision` across organisations and get back governed, attested artifacts."*
 
 > If a single-pane shot is preferred for the live pitch clip, show **just the daemon side** (`_quads_for_artifact`) since that's what the demo actually exercises in Scene 6, and use the JSON-LD `demo-jsonld.json` `cat` shot (per `demo-clip-script.md` Scene 3) as the conceptual payload representation.
 
@@ -315,7 +322,7 @@ source .venv/bin/activate
 python -m pytest package/tests/unit -q
 ```
 
-→ *75 passed* (15 of which are new daemon-client coverage: token resolution priority, WM write, SWM write, promote, SPARQL with `GRAPH ?g` named-sub-graph traversal)
+→ *79 passed* (daemon-client coverage includes token resolution priority, WM write, SWM write, promote/share, the rc.17 `/api/knowledge-assets` surface + one-time `404` legacy fallback, `vm_publish`, and SPARQL with `GRAPH ?g` named-sub-graph traversal)
 
 ```bash
 # Integration tests (requires either the daemon on :9201 or an MCP node on :8081/:8083)
@@ -325,7 +332,7 @@ DKG_BASE_URL=http://127.0.0.1:9201 DKG_CONTEXT_GRAPH=agience-test \
 
 → *5 passed*
 
-Narrate: *"75 unit tests cover both transports, the governance gate refusal of drafts, typed JSON-LD generation, error reporting, and the CLI flow. 5 integration tests run end-to-end against a live DKG v10 daemon — or an MCP-fronted node — with identical results."*
+Narrate: *"79 unit tests cover both transports, the governance gate refusal of drafts, the rc.17 Knowledge Asset surface and its legacy fallback, the Verifiable Memory publish path, typed JSON-LD generation, error reporting, and the CLI flow. 5 integration tests run end-to-end against a live DKG v10 daemon — or an MCP-fronted node — with identical results."*
 
 ### Scene 9 — FLARE reference (30s, optional)
 
@@ -353,7 +360,7 @@ Narrate: *"FLARE is the cryptographic confidentiality layer. When an Agience col
 - [ ] `integration/package/.env` populated; `WIN_HOST` resolved if recording from WSL
 - [ ] Scene 4 produces the **governance refusal** error (this is the money shot — don't skip)
 - [ ] Scene 6 produces a `turn_uri` and `status: anchored` against the daemon
-- [ ] Unit test count is **75 passed**, integration tests **5 passed**
+- [ ] Unit test count is **79 passed**, integration tests **5 passed**
 - [ ] No competitor submissions or unbounded speculation about Beacon
 - [ ] Audio levels consistent across terminals and UI
 
@@ -371,3 +378,6 @@ Narrate: *"FLARE is the cryptographic confidentiality layer. When an Agience col
 | `No LLM connection available. Set OPENAI_API_KEY ...` | Aria's chat handler can't see your OpenAI key. | Put `OPENAI_API_KEY=sk-...` in `agience-core/.env` (the UI LLM Keys tab does **not** wire into the default chat handler — flagged as a bug to John). |
 | `missing required option(s): --title` after `--from-agience-artifact` | Artifact has no `title` (UI doesn't enforce it). | Pass `--title "..."` explicitly until Agience tightens validation. |
 | Blockchain anchor returns `pending`, lofar-testnet error in DKG log | Public OT-node RPC intermittent. | Either retry, or accept `pending` — narrate it as the integration honestly reporting state. |
+| Daemon **hangs on `dkg start`** with no error, never binds `:9201` | First-run Oxigraph binary download is blocked/stalled by the network. | Pre-seed `~/.dkg/oxigraph/oxigraph-vX.Y.Z` manually (verify SHA-256), then restart. See §0.2. |
+| `404` on `/api/knowledge-assets`, or stale graph data after upgrade | Daemon predates rc.17, or the rc.17 one-time store wipe wasn't done. | The client auto-falls back to legacy `/api/assertion/*` on `404`; for rc.17 do the one-time store wipe per `UPGRADE_TO_RC17`. |
+| `NO_DATA_IN_SWM` on `vm-publish` | Publishing to a **public** Context Graph (access-policy 0) — known daemon bug #1124. | Use a **private** Context Graph (access-policy 1) for VM publish/smoke tests. |

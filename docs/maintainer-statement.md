@@ -21,12 +21,15 @@ Commitment includes:
 
 The maintained surface is the DKG v10 public interface set declared in bounty § 5:
 
-**Daemon HTTP API (default transport):**
-- `POST /api/assertion/create` + `POST /api/assertion/{name}/write` (Working Memory write)
+**Daemon HTTP API (default transport — DKG `v10.0.0-rc.17` unified `/api/knowledge-assets` surface, OT-RFC-43):**
+- `POST /api/knowledge-assets` + `POST /api/knowledge-assets/{name}/wm/write` (Working Memory write)
 - `POST /api/shared-memory/write` (Shared Memory write)
-- `POST /api/assertion/{name}/promote` (Curator-authorized SHARE)
+- `POST /api/knowledge-assets/{name}/swm/share` (Curator-authorized SHARE; rc.17 rename of `promote`)
+- `POST /api/knowledge-assets/{name}/vm/publish` (Curator-authorized PUBLISH — Verifiable Memory, on-chain)
 - `POST /api/query` (memory search)
 - `GET /api/status` (health probe)
+
+_Legacy `/api/assertion/*` routes are supported via a transparent one-time `404` fallback for pre-rc.17 daemons._
 
 **MCP Streamable HTTP (alternative transport):**
 - `POST /mcp` → `dkg-create` tool (Working Memory write and Shared Memory promotion)

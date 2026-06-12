@@ -121,11 +121,14 @@ class AgienceArtifact(BaseModel):
 
 
 class AgienceClient:
-    """Synchronous Agience Core HTTP client (read-only).
+    """Synchronous Agience Core HTTP client.
 
-    Only fetches artifacts. Never writes back to Agience. The integration
-    package is a one-way bridge from Agience's governed authoring surface
-    into DKG memory layers.
+    Primarily a read path: it fetches committed artifacts as the governed
+    source of truth for DKG projection. The single exception is
+    :meth:`record_publication`, which writes one provenance receipt back to
+    Agience after a successful DKG ``wm-write`` / ``promote`` so the platform's
+    DKG Projection panel can display the real UAL and stage. That write-back is
+    always best-effort and never gates the DKG operation itself.
     """
 
     def __init__(
@@ -156,6 +159,9 @@ class AgienceClient:
         if not path.startswith("/"):
             path = "/" + path
         return f"{self.base_url}{path}"
+
+    def _publication_url(self, artifact_id: str) -> str:
+        return f"{self._artifact_url(artifact_id)}/dkg/publication"
 
     def get_artifact(self, artifact_id: str) -> AgienceArtifact:
         """Fetch an artifact from Agience without enforcing commit state.
@@ -191,6 +197,69 @@ class AgienceClient:
             raise AgienceClientError(
                 f"Could not parse Agience artifact response: {exc}"
             ) from exc
+
+    def record_publication(
+        self,
+        artifact_id: str,
+        *,
+        dkg_stage: str,
+        context_graph_id: str,
+        publish_state: str,
+        ual: Optional[str] = None,
+        assertion_id: Optional[str] = None,
+        turn_uri: Optional[str] = None,
+        transport: Optional[str] = None,
+        projection_mode: str = "rdf",
+        content_digest: Optional[str] = None,
+        remote_timestamp: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Write back a DKG publication receipt (the real projection outcome).
+
+        This is the only write this client performs. It lets the Agience DKG
+        Projection panel show the live UAL and stage state for a governed
+        artifact. Callers treat failures as non-fatal: the DKG write has
+        already succeeded by the time this is invoked.
+
+        Raises:
+            AgienceClientError: on transport / auth / HTTP failure, so the
+                caller can warn without aborting.
+        """
+        url = self._publication_url(artifact_id)
+        payload: Dict[str, Any] = {
+            "dkg_stage": dkg_stage,
+            "context_graph_id": context_graph_id,
+            "publish_state": publish_state,
+            "projection_mode": projection_mode,
+        }
+        for key, value in (
+            ("ual", ual),
+            ("assertion_id", assertion_id),
+            ("turn_uri", turn_uri),
+            ("transport", transport),
+            ("content_digest", content_digest),
+            ("remote_timestamp", remote_timestamp),
+        ):
+            if value:
+                payload[key] = value
+
+        try:
+            with httpx.Client(timeout=self._timeout) as http:
+                r = http.post(url, headers=self._headers(), json=payload)
+        except httpx.HTTPError as exc:
+            hint = _wsl_loopback_hint(url)
+            raise AgienceClientError(
+                f"Failed to record publication at {url}: {exc}{hint}"
+            ) from exc
+
+        if r.status_code >= 400:
+            raise AgienceClientError(
+                f"Agience returned {r.status_code} recording publication for "
+                f"{artifact_id}: {r.text[:200]}"
+            )
+        try:
+            return r.json()
+        except Exception:
+            return {}
 
     def get_committed_artifact(self, artifact_id: str) -> AgienceArtifact:
         """Fetch an artifact and enforce that it has been committed.

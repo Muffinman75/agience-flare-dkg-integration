@@ -65,7 +65,16 @@ def test_governed_mode_projects_committed_artifact(monkeypatch):
     - commit_receipt_id is attached
     """
 
+    publications: list[Dict[str, Any]] = []
+
     def agience_handler(request: httpx.Request) -> httpx.Response:
+        # Best-effort provenance write-back after a successful WM write.
+        if request.method == "POST" and request.url.path.endswith("/dkg/publication"):
+            assert request.url.path == "/artifacts/art-001/dkg/publication"
+            import json as _json
+
+            publications.append(_json.loads(request.content))
+            return httpx.Response(200, json={"ok": True})
         assert request.url.path == "/artifacts/art-001"
         return httpx.Response(
             200,
@@ -108,6 +117,13 @@ def test_governed_mode_projects_committed_artifact(monkeypatch):
     assert req.collection_id == "agience-architecture"
     assert req.commit_receipt_id == "rcpt-abc-123"
     assert "We will use DKG v10" in req.markdown
+
+    # The best-effort write-back recorded the live UAL + WM stage on the artifact.
+    assert len(publications) == 1
+    assert publications[0]["dkg_stage"] == "wm"
+    assert publications[0]["context_graph_id"] == "cg-1"
+    assert publications[0]["publish_state"] == "written"
+    assert publications[0]["ual"] == "agience://memory/cg-1/abc"
 
 
 def test_governed_mode_rejects_draft_artifact(monkeypatch):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 
 import typer
@@ -127,6 +128,7 @@ def wm_write(
     committed (i.e. has passed the human-review boundary).
     """
     commit_receipt_id: str | None = None
+    ag: AgienceClient | None = None
 
     if from_agience_artifact:
         try:
@@ -195,6 +197,30 @@ def wm_write(
     result = client.memory_turn(request)
     typer.echo(result.model_dump_json(indent=2))
 
+    # Best-effort provenance write-back: record the real UAL/stage on the
+    # Agience artifact so its DKG Projection panel reflects the live node.
+    # Only in governed mode (we have an artifact id) and only when anchored.
+    if from_agience_artifact and ag is not None and result.status == "anchored":
+        chosen_transport = (transport or os.environ.get("DKG_TRANSPORT") or "daemon").lower()
+        stage = "swm" if layer == "swm" else "wm"
+        publish_state = "promoted" if layer == "swm" else "written"
+        try:
+            ag.record_publication(
+                from_agience_artifact,
+                dkg_stage=stage,
+                context_graph_id=context_graph_id,
+                publish_state=publish_state,
+                ual=result.turn_uri,
+                turn_uri=result.turn_uri,
+                transport=chosen_transport,
+            )
+        except AgienceClientError as exc:
+            typer.echo(
+                f"Note: DKG write succeeded but recording it back to Agience "
+                f"failed (panel will fall back to the projection plan): {exc}",
+                err=True,
+            )
+
 
 @app.command("promote")
 def promote(
@@ -203,6 +229,17 @@ def promote(
     base_url: str = typer.Option("", help="DKG node base URL (overrides DKG_BASE_URL)"),
     token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
     transport: str = typer.Option("", "--transport", help="'daemon' (default) or 'mcp'. Overridable via DKG_TRANSPORT."),
+    from_agience_artifact: str = typer.Option(
+        "",
+        "--from-agience-artifact",
+        help=(
+            "Agience artifact id this assertion was projected from. When set, "
+            "the SWM promotion is recorded back to Agience so its DKG Projection "
+            "panel shows the Shared Memory stage. Best-effort; never blocks promote."
+        ),
+    ),
+    agience_base_url: str = typer.Option("", help="Agience backend URL (overrides AGIENCE_BASE_URL)"),
+    agience_token: str = typer.Option("", help="Agience bearer token (overrides AGIENCE_TOKEN)"),
 ) -> None:
     """Promote a Working Memory Knowledge Asset to Shared Memory (Curator-authorized SHARE).
 
@@ -218,6 +255,110 @@ def promote(
     )
     result = client.assertion_promote(request)
     typer.echo(result.model_dump_json(indent=2))
+
+    # Best-effort provenance write-back of the Shared Memory promotion.
+    if from_agience_artifact and result.ok:
+        chosen_transport = (transport or os.environ.get("DKG_TRANSPORT") or "daemon").lower()
+        try:
+            ag = AgienceClient(
+                base_url=agience_base_url or None,
+                bearer_token=agience_token or None,
+            )
+            ag.record_publication(
+                from_agience_artifact,
+                dkg_stage="swm",
+                context_graph_id=context_graph_id,
+                publish_state="promoted",
+                ual=turn_uri,
+                assertion_id=name,
+                turn_uri=turn_uri,
+                transport=chosen_transport,
+            )
+        except AgienceClientError as exc:
+            typer.echo(
+                f"Note: promote succeeded but recording it back to Agience failed: {exc}",
+                err=True,
+            )
+
+
+@app.command("vm-publish")
+def vm_publish(
+    turn_uri: str = typer.Argument(..., help="turnUri/UAL returned by wm-write or promote (the assertion name is its last path segment)"),
+    context_graph_id: str = typer.Option(..., help="DKG Context Graph ID (must be on-chain registered)"),
+    sub_graph_name: str = typer.Option("", "--sub-graph-name", help="Optional named sub-graph to publish"),
+    publish_epochs: int = typer.Option(0, "--publish-epochs", help="Number of epochs to keep the asset published (0 = daemon default)"),
+    base_url: str = typer.Option("", help="DKG node base URL (overrides DKG_BASE_URL)"),
+    token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
+    transport: str = typer.Option("", "--transport", help="Must be 'daemon' (VM publish is daemon-only). Overridable via DKG_TRANSPORT."),
+    from_agience_artifact: str = typer.Option(
+        "",
+        "--from-agience-artifact",
+        help=(
+            "Agience artifact id this assertion was projected from. When set, a "
+            "successful on-chain publish is recorded back to Agience so its DKG "
+            "Projection panel shows the Verifiable Memory stage. Best-effort."
+        ),
+    ),
+    agience_base_url: str = typer.Option("", help="Agience backend URL (overrides AGIENCE_BASE_URL)"),
+    agience_token: str = typer.Option("", help="Agience bearer token (overrides AGIENCE_TOKEN)"),
+) -> None:
+    """Publish a shared Knowledge Asset to Verifiable Memory (on-chain, DKG v10 rc.17+).
+
+    Mints (or updates) the Knowledge Asset on chain via the daemon's
+    ``/api/knowledge-assets/{name}/vm/publish`` route. The assertion must already
+    be finalized and shared to SWM (run `promote` first), the Context Graph must
+    be on-chain registered, and the node needs gas + TRAC and a reliable RPC.
+
+    Daemon-only: VM publish has no MCP equivalent. Best-effort — a failed publish
+    reports the daemon's error rather than crashing, so the WM/SWM provenance is
+    preserved.
+    """
+    client = _client(base_url or None, token or None, transport or None)
+    if not isinstance(client, DkgDaemonClient):
+        typer.echo(
+            "Error: vm-publish is only supported on the daemon transport "
+            "(--transport daemon). MCP-fronted nodes do not expose VM publish.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    name = turn_uri.split("/")[-1]
+    result = client.vm_publish(
+        name=name,
+        context_graph_id=context_graph_id,
+        sub_graph_name=sub_graph_name or None,
+        publish_epochs=publish_epochs or None,
+    )
+    typer.echo(json.dumps(result, indent=2))
+
+    if not result.get("ok"):
+        # Surface a non-zero exit so scripts can detect an unconfirmed publish,
+        # but the receipt has already been printed for diagnosis.
+        raise typer.Exit(4)
+
+    # Best-effort provenance write-back of the Verifiable Memory publish.
+    if from_agience_artifact:
+        chosen_transport = (transport or os.environ.get("DKG_TRANSPORT") or "daemon").lower()
+        try:
+            ag = AgienceClient(
+                base_url=agience_base_url or None,
+                bearer_token=agience_token or None,
+            )
+            ag.record_publication(
+                from_agience_artifact,
+                dkg_stage="vm",
+                context_graph_id=context_graph_id,
+                publish_state="published",
+                ual=result.get("ual") or turn_uri,
+                assertion_id=name,
+                turn_uri=turn_uri,
+                transport=chosen_transport,
+            )
+        except AgienceClientError as exc:
+            typer.echo(
+                f"Note: VM publish succeeded but recording it back to Agience failed: {exc}",
+                err=True,
+            )
 
 
 @app.command("search")
