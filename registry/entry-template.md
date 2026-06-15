@@ -19,7 +19,7 @@ Filed as PR against [`OriginTrail/dkg-integrations`](https://github.com/OriginTr
 - **Secondary interface:** DKG v10 MCP Streamable HTTP (`POST /mcp`) — `dkg-create` and `dkg-sparql-query` tools (for MCP-fronted nodes such as those configured via `dkg mcp setup`).
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
-- **Package version:** `0.4.0`
+- **Package version:** `0.4.1`
 - **Pinned commit SHA:** `6e3a7676fa4ef76bccf9ae47e6b3974a71c036f8` (v0.4.0 release commit)
 - **License:** MIT
 - **SPDX:** `MIT`
@@ -65,7 +65,7 @@ This integration is part of a larger body of work spanning three repositories:
 |---|---|---|
 | [Agience Core](https://github.com/Agience/agience-core) | Governed MCP-native artifact platform | `backend/api/dkg_integration.py` (receipt schema), `backend/services/dkg_integration_service.py` (policy mapping, projection validation + DKG projection read model), `frontend/src/components/workspace/DkgProjectionPanel.tsx` (DKG projection panel), DKG service tests |
 | [FLARE Index](https://github.com/Agience/flare-index) | Cryptographic vector search | 101-test suite, AES-256-GCM per-cell encryption, Shamir K-of-M threshold oracle, [research paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md) |
-| This repository | Integration bridge | MCP stdio server, daemon HTTP client (rc.17 KA surface + legacy fallback) + MCP Streamable HTTP client (selectable via `--transport`), typed JSON-LD, CLI (`wm-write`/`promote`/`vm-publish`/`search`), governed-mode (`--from-agience-artifact`) gate, 79 unit tests + 5 integration tests |
+| This repository | Integration bridge | MCP stdio server, daemon HTTP client (rc.17 KA surface + legacy fallback) + MCP Streamable HTTP client (selectable via `--transport`), typed JSON-LD, CLI (`wm-write`/`promote`/`vm-publish`/`search`), governed-mode (`--from-agience-artifact`) gate, 82 unit tests + 5 integration tests |
 
 > **Fork note.** The `agience-core` and `flare-index` changes for this integration live on the author's forks ([github.com/Muffinman75](https://github.com/Muffinman75)), not the upstream `Agience/*` repos.
 
@@ -79,7 +79,7 @@ This integration is part of a larger body of work spanning three repositories:
 - [x] No dynamic code loading, no `eval` on remote input
 - [x] `pip audit --production` clean
 - [x] Contributor attestation in `docs/maintainer-statement.md`
-- [x] 191 total tests (79 integration pkg unit + 5 integration + 6+ Agience Core DKG + 101 FLARE)
+- [x] 194 total tests (82 integration pkg unit + 5 integration + 6+ Agience Core DKG + 101 FLARE)
 - [x] GitHub Actions CI (unit tests, dependency audit, build verification)
 - [x] Demo link — https://youtu.be/0Zm8R3vQzgU
 - [x] Design brief link — `DESIGN_BRIEF.md` in repo root

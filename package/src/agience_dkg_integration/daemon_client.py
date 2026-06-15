@@ -126,13 +126,17 @@ class DkgDaemonClient:
         base_url: Optional[str] = None,
         bearer_token: Optional[str] = None,
         *,
-        timeout: float = 60.0,
+        timeout: Optional[float] = None,
     ) -> None:
         self.base_url = (
             base_url or os.environ.get("DKG_BASE_URL", "http://127.0.0.1:9201")
         ).rstrip("/")
         self._bearer_token = _resolve_token(bearer_token)
-        self._timeout = timeout
+        self._timeout = (
+            timeout
+            if timeout is not None
+            else float(os.environ.get("DKG_TIMEOUT", "300"))
+        )
         # Cached daemon capability: None = unprobed, True = rc.17
         # ``/api/knowledge-assets`` surface, False = pre-rc.17 legacy
         # ``/api/assertion`` routes. Set on the first WM write / share.
@@ -557,10 +561,12 @@ SELECT ?s ?name ?text ?memoryLayer ?artifactId ?author ?collection WHERE {{
 LIMIT {request.limit}"""
 
         try:
-            resp = self._post(
-                "/api/query",
-                {"sparql": sparql, "contextGraphId": request.context_graph_id},
-            )
+            # NOTE: do NOT pass ``contextGraphId`` in the body. On rc.17 the
+            # daemon uses it to scope ``/api/query`` to a meta-only view that
+            # excludes the real ``…/_shared_memory/…`` and ``…/_working_memory/…``
+            # content graphs, so a scoped query never sees the promoted quads.
+            # Scope is enforced inside the SPARQL via ``CONTAINS(STR(?s), cgId)``.
+            resp = self._post("/api/query", {"sparql": sparql})
         except httpx.HTTPStatusError as exc:
             return MemorySearchResult(
                 result_count=0,

@@ -56,7 +56,9 @@ agience-dkg wm-write \
   --collection-id my-project
 
 # Promote to Shared Memory (SHARE)
-agience-dkg promote <turn-uri> --context-graph-id my-context-graph
+# Pass the Knowledge Asset NAME from the wm-write output (e.g. "art-001-Architecture-Decision-..."),
+# NOT the rc.17 turnUri (its trailing revision index does not contain the KA name).
+agience-dkg promote <ka-name> --context-graph-id my-context-graph
 
 # Search
 agience-dkg search "architecture decisions" --context-graph-id my-context-graph

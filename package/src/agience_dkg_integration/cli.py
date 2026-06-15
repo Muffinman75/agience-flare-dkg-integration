@@ -36,6 +36,29 @@ app = typer.Typer(
 )
 
 
+def _ka_name_from_ref(ref: str) -> str:
+    """Resolve a Knowledge Asset *name* from a CLI argument.
+
+    rc.17 keys SHARE/PUBLISH by the KA ``name`` returned by ``wm-write``
+    (e.g. ``<artifactId>-<title-slug>``), **not** by the ``turnUri``. The rc.17
+    WM/SWM/VM ``turnUri`` ends in a numeric revision index
+    (``…/_working_memory/{addr}/{n}``) that does not contain the name, so it
+    cannot be split back into one. Accept the KA name directly while still
+    tolerating a legacy ``…/assertion/{addr}/{name}`` URI (whose final path
+    segment *is* the name).
+    """
+    if any(
+        marker in ref
+        for marker in ("/_working_memory/", "/_shared_memory/", "/_verifiable_memory/")
+    ):
+        raise typer.BadParameter(
+            "Pass the Knowledge Asset name from wm-write output "
+            "(e.g. '<artifactId>-<title-slug>'), not the rc.17 turnUri \u2014 the "
+            "turnUri ends in a revision index and does not contain the KA name."
+        )
+    return ref.split("/")[-1]
+
+
 def _client(
     base_url: str | None,
     token: str | None,
@@ -224,7 +247,7 @@ def wm_write(
 
 @app.command("promote")
 def promote(
-    turn_uri: str = typer.Argument(..., help="turnUri returned by wm-write (e.g. agience://wm/turn/abc123)"),
+    turn_uri: str = typer.Argument(..., help="Knowledge Asset NAME from wm-write output (e.g. '<artifactId>-<title-slug>'). NOT the rc.17 turnUri."),
     context_graph_id: str = typer.Option(..., help="DKG Context Graph ID"),
     base_url: str = typer.Option("", help="DKG node base URL (overrides DKG_BASE_URL)"),
     token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
@@ -283,7 +306,7 @@ def promote(
 
 @app.command("vm-publish")
 def vm_publish(
-    turn_uri: str = typer.Argument(..., help="turnUri/UAL returned by wm-write or promote (the assertion name is its last path segment)"),
+    turn_uri: str = typer.Argument(..., help="Knowledge Asset NAME from wm-write output (e.g. '<artifactId>-<title-slug>'). NOT the rc.17 turnUri."),
     context_graph_id: str = typer.Option(..., help="DKG Context Graph ID (must be on-chain registered)"),
     sub_graph_name: str = typer.Option("", "--sub-graph-name", help="Optional named sub-graph to publish"),
     publish_epochs: int = typer.Option(0, "--publish-epochs", help="Number of epochs to keep the asset published (0 = daemon default)"),
@@ -322,7 +345,7 @@ def vm_publish(
         )
         raise typer.Exit(1)
 
-    name = turn_uri.split("/")[-1]
+    name = _ka_name_from_ref(turn_uri)
     result = client.vm_publish(
         name=name,
         context_graph_id=context_graph_id,

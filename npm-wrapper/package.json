@@ -1,6 +1,6 @@
 {
   "name": "agience-flare-dkg-integration",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "npm wrapper for the Agience FLARE \u00d7 DKG v10 Integration. Governance layer above DKG v10: commit-gated Agience artifacts \u2192 typed agience: RDF Knowledge Assets in Working Memory and Shared Memory via the local DKG v10 daemon HTTP API or MCP Streamable HTTP. Wrapper delegates to the Python CLI (agience-dkg) shipped on PyPI as agience-flare-dkg-integration.",
   "keywords": [
     "origintrail",

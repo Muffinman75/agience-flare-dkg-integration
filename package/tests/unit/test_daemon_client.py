@@ -362,6 +362,12 @@ def test_memory_search_sends_graph_scoped_sparql() -> None:
     assert "schema:text" in sparql
     assert "agience:memoryLayer" in sparql
     assert 'IN ("wm")' in sparql
+    # Regression: must NOT pass contextGraphId in the body. rc.17 uses it to
+    # scope /api/query to a meta-only view that excludes the real
+    # …/_shared_memory/… content graphs, so a scoped query never sees the
+    # promoted quads. Scope is enforced inside the SPARQL instead.
+    assert "contextGraphId" not in call[1]
+    assert 'CONTAINS(STR(?s), "cg-1")' in sparql
 
 
 def test_memory_search_returns_empty_on_failure() -> None:

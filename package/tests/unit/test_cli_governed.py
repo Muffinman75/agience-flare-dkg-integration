@@ -268,3 +268,35 @@ def test_explicit_mode_missing_required_fields_fails(monkeypatch):
     output = result.output + (getattr(result, "stderr", "") or "")
     # The error message hints at the governed-mode alternative
     assert "from-agience-artifact" in output or "missing" in output.lower()
+
+
+# ---------------------------------------------------------------------------
+# _ka_name_from_ref — promote/vm-publish KA-name resolution
+# ---------------------------------------------------------------------------
+
+
+def test_ka_name_from_ref_accepts_bare_name():
+    """A plain KA name (as returned by wm-write) passes through unchanged."""
+    from agience_dkg_integration.cli import _ka_name_from_ref
+
+    name = "468dfefc-Architecture-Decision-Record-DKG-v10"
+    assert _ka_name_from_ref(name) == name
+
+
+def test_ka_name_from_ref_accepts_legacy_assertion_uri():
+    """Legacy ``…/assertion/{addr}/{name}`` URIs yield their final segment."""
+    from agience_dkg_integration.cli import _ka_name_from_ref
+
+    ref = "did:dkg:context-graph:cg-1/assertion/0xabc/my-asset"
+    assert _ka_name_from_ref(ref) == "my-asset"
+
+
+def test_ka_name_from_ref_rejects_rc17_turn_uri():
+    """rc.17 WM/SWM/VM turnUris end in a revision index, not the KA name."""
+    import typer
+
+    from agience_dkg_integration.cli import _ka_name_from_ref
+
+    turn_uri = "did:dkg:context-graph:agience-demo/_working_memory/0x7529/1"
+    with pytest.raises(typer.BadParameter):
+        _ka_name_from_ref(turn_uri)
