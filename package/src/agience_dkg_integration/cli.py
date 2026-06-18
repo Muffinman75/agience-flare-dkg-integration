@@ -271,7 +271,7 @@ def promote(
     or `vm-eligible`). Preserves the UAL chain for Round 2 Verified Memory.
     """
     client = _client(base_url or None, token or None, transport or None)
-    name = turn_uri.split("/")[-1]
+    name = _ka_name_from_ref(turn_uri)
     request = AssertionPromoteRequest(
         name=name,
         contextGraphId=context_graph_id,

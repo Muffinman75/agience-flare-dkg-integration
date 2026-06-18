@@ -63,7 +63,7 @@ This integration is part of a larger body of work spanning three repositories:
 
 | Repository | Role | Key DKG-relevant components |
 |---|---|---|
-| [Agience Core](https://github.com/Agience/agience-core) | Governed MCP-native artifact platform | `backend/api/dkg_integration.py` (receipt schema), `backend/services/dkg_integration_service.py` (policy mapping, projection validation + DKG projection read model), `frontend/src/components/workspace/DkgProjectionPanel.tsx` (DKG projection panel), DKG service tests |
+| [Agience Core](https://github.com/Agience/agience-core) | Governed MCP-native artifact platform | `src/mantle/api/dkg_integration.py` (receipt schema), `src/mantle/services/dkg_integration_service.py` (policy mapping, projection validation + DKG projection read model), `src/facet/src/components/workspace/DkgProjectionPanel.tsx` (DKG projection panel), 11 DKG-service tests |
 | [FLARE Index](https://github.com/Agience/flare-index) | Cryptographic vector search | 101-test suite, AES-256-GCM per-cell encryption, Shamir K-of-M threshold oracle, [research paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md) |
 | This repository | Integration bridge | MCP stdio server, daemon HTTP client (rc.17 KA surface + legacy fallback) + MCP Streamable HTTP client (selectable via `--transport`), typed JSON-LD, CLI (`wm-write`/`promote`/`vm-publish`/`search`), governed-mode (`--from-agience-artifact`) gate, 82 unit tests + 5 integration tests |
 
@@ -79,7 +79,7 @@ This integration is part of a larger body of work spanning three repositories:
 - [x] No dynamic code loading, no `eval` on remote input
 - [x] `pip audit --production` clean
 - [x] Contributor attestation in `docs/maintainer-statement.md`
-- [x] 194 total tests (82 integration pkg unit + 5 integration + 6+ Agience Core DKG + 101 FLARE)
+- [x] 87 tests in this integration repo (82 unit + 5 integration); counted per-repo, Agience Core adds 11 DKG-service tests and FLARE 101 search tests (not summed)
 - [x] GitHub Actions CI (unit tests, dependency audit, build verification)
 - [x] Demo link — https://youtu.be/0Zm8R3vQzgU
 - [x] Design brief link — `DESIGN_BRIEF.md` in repo root

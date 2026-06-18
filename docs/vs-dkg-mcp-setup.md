@@ -21,6 +21,7 @@ This is excellent and solves the transport problem. **This integration is the go
 |---|---|---|
 | **MCP transport to DKG** | ✅ Two-command install | ✅ MCP stdio server (compatible, complementary) |
 | **Works with Claude / Cursor / Cline / Codex / Windsurf / Copilot Chat** | ✅ | ✅ |
+| **Works with OpenClaw / Hermes / any MCP agent** | ✅ Direct write | ✅ Via Agience's persona MCP servers — any MCP-capable agent deposits into Agience, then this integration's `agience_wm_write` projects only human-committed artifacts to DKG |
 | **Human-review commit boundary** | ❌ Any agent calls `dkg-create` directly | ✅ Workspace → Collection commit gate; nothing reaches DKG without explicit human approval |
 | **Structured commit review** | ❌ No review surface | ✅ `CommitReviewDialog` shows every changed artifact, its target collection, and provenance attribution before the human confirms |
 | **Policy-controlled projection** | ❌ None | ✅ Five-dimension `PolicyMappingRecord` evaluated before every write |
@@ -38,7 +39,7 @@ This is excellent and solves the transport problem. **This integration is the go
 Without governance, an MCP-connected agent can `dkg-create` anything at any time. With Agience Core upstream, every artifact passes:
 
 1. Drafted in a workspace (Agience artifacts have a `state` field with `{draft, committed, archived}`, enforced server-side in `entities/artifact.py`)
-2. Authored via the Palette — Prompts, Instructions, Context, and Input/Output panels invoke the configured LLM (e.g. your OpenAI key) and write the result back as draft artifacts the human can edit
+2. Authored via the Palette — Prompts, Instructions, Context, and Input/Output panels invoke the configured LLM (any provider Agience supports — OpenAI, Anthropic, Azure OpenAI, Google AI, Cohere, Mistral, or local Ollama) and write the result back as draft artifacts the human can edit
 3. Reviewed in `CommitReviewDialog`, which surfaces every changed artifact, its target collection, provenance attribution, and any commit warnings
 4. **Explicit human commit** to a versioned collection — the `committed` state transition is the governance boundary
 5. On projection, this integration tags the JSON-LD `@type` (e.g. `agience:architecture-decision`) from the operator-supplied `--artifact-type` flag and evaluates `PolicyMappingRecord`
@@ -68,7 +69,7 @@ When `policy_class = "internal-confidential"`, raw content stays FLARE-encrypted
 
 ### 4. Typed RDF Knowledge Assets
 
-Where `dkg-create` accepts generic JSON-LD, this integration writes typed `agience:` Knowledge Assets. The `@type` is supplied by the operator/agent through the CLI (`--artifact-type`) or MCP tool argument (`artifact_type`) and asserted by this integration when constructing the JSON-LD payload — it is not extracted from Agience's artifact entity, which has no native taxonomy beyond the `state` field:
+Where `dkg-create` accepts generic JSON-LD, this integration writes typed `agience:` Knowledge Assets. The `@type` is supplied by the operator/agent through the CLI (`--artifact-type`) or MCP tool argument (`artifact_type`) and asserted by this integration when constructing the JSON-LD payload. This knowledge-domain `@type` (e.g. `research-note`, `decision`, `claim`) is a *different axis* from Agience's own native taxonomy: Agience types every artifact by `content_type` — a media-type system (e.g. `text/markdown`, `application/vnd.agience.person+json`) that classifies *format*, not knowledge role. The integration deliberately asserts the knowledge-domain `@type` rather than reusing the platform content-type, keeping the DKG vocabulary purpose-built for research/knowledge assets:
 
 ```json
 {

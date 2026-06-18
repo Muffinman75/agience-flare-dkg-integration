@@ -18,7 +18,7 @@ DKG v10 introduces the three-tier memory model (Working Memory → Shared Memory
 
 This submission bridges three systems at the architectural level to provide both:
 
-- **[Agience Core](https://github.com/Agience/agience-core)** — an MCP-native AI knowledge platform (858 items, 11-tool MCP server, 8 agent persona servers, ArangoDB + OpenSearch) with governed artifact authoring, versioned collections, human-review commit boundaries, and provenance receipts. DKG projection models, receipt schemas, and policy routing have been added directly to the Agience Core platform as part of this integration.
+- **[Agience Core](https://github.com/Agience/agience-core)** — an MCP-native AI knowledge platform (7 agent persona MCP servers exposing 100+ tools, pluggable LLM providers — OpenAI, Anthropic, Azure OpenAI, Google AI, Cohere, Mistral, or local Ollama — ArangoDB + OpenSearch) with governed artifact authoring, versioned collections, human-review commit boundaries, and provenance receipts. DKG projection models, receipt schemas, and policy routing have been added directly to the Agience Core platform as part of this integration.
 
 - **[FLARE](https://github.com/Agience/flare-index)** ([paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md)) — cryptographically enforced AES-256-GCM encrypted vector search with Shamir K-of-M threshold oracle key issuance, Ed25519 signed hash-chained grant ledger, and light-cone graph authorization. 101-test pytest suite; 95.6% recall preservation vs plaintext FAISS on BEIR SciFact. FLARE mediates the retrieval path — when content is classified as confidential, only derived projections reach DKG.
 
@@ -26,7 +26,7 @@ This submission bridges three systems at the architectural level to provide both
 
 **Why this matters now.** As of 7 May 2026, OriginTrail shipped `dkg mcp setup` — a two-command path that wires any MCP-compatible client (Cursor, Claude Desktop, Claude Code, Cline, Codex, Windsurf, VS Code Copilot Chat) to DKG Working Memory. That's the new floor, and it solves *transport*. It does not solve *governance*: there is no human-review commit boundary, no policy-controlled projection, no cryptographic confidentiality boundary, and no typed RDF vocabulary above raw `dkg-create` calls. This integration delivers exactly that upstream governance, so what reaches the shared substrate is signal, not noise. The head-to-head comparison is in §2 below and in [`docs/vs-dkg-mcp-setup.md`](docs/vs-dkg-mcp-setup.md).
 
-**Positioning.** This submission is **platform-level and complementary** to single-tool integrations. A ChatGPT, Claude, Slack, GitHub, or Obsidian client can write into a governed Agience workspace; this integration then governs which artifacts reach DKG Working Memory and Shared Memory, with what typing, and under whose authority. The intent is to strengthen the ecosystem alongside other Round 1 entries, not to overlap with them.
+**Positioning.** This submission is **platform-level and complementary** to single-tool integrations. A ChatGPT, Claude, Slack, GitHub, Obsidian, OpenClaw, or Hermes agent can write into a governed Agience workspace via Agience's persona MCP servers; this integration then governs which artifacts reach DKG Working Memory and Shared Memory, with what typing, and under whose authority. OpenClaw and Hermes are MCP-capable and can call `agience_wm_write` directly — the integration is not tied to any one agent framework. The intent is to strengthen the ecosystem alongside other Round 1 entries, not to overlap with them.
 
 ---
 
@@ -38,14 +38,14 @@ The official `dkg mcp setup` makes MCP transport to DKG a commodity. This submis
 |---|---|---|
 | **MCP transport to DKG** | ✅ Two-command install for any MCP host | ✅ MCP stdio server (compatible, complementary) |
 | **Human-review commit boundary** | ❌ Direct `dkg-create` from any agent | ✅ Workspace → Collection commit gate; nothing reaches DKG without explicit approval |
-| **Structured commit review** | ❌ No review surface — every `dkg-create` lands directly | ✅ `CommitReviewDialog` shows every changed artifact, target collection, and provenance label before the human confirms (`@/agience-core/frontend/src/components/workspace/CommitReviewDialog.tsx`); `state ∈ {draft, committed, archived}` enforced server-side (`@/agience-core/backend/entities/artifact.py`) |
+| **Structured commit review** | ❌ No review surface — every `dkg-create` lands directly | ✅ `CommitReviewDialog` shows every changed artifact, target collection, and provenance label before the human confirms (`@/agience-core/src/facet/src/components/workspace/CommitReviewDialog.tsx`); `state ∈ {draft, committed, archived}` enforced server-side (`@/agience-core/src/mantle/entities/artifact.py`) |
 | **Policy-controlled projection** | ❌ None | ✅ Five-dimension `PolicyMappingRecord` (policy class, promotion profile, export profile, retrieval profile, identity profile) evaluated before every write |
 | **Cryptographic confidentiality** | ❌ Plaintext only | ✅ FLARE AES-256-GCM cell-level encryption with Shamir K-of-M threshold oracle and Ed25519 signed grant ledger (101 tests) |
 | **Typed RDF vocabulary** | ❌ Generic JSON-LD | ✅ `agience:` namespace with 8+ SPARQL-queryable predicates (`agience:author`, `agience:tags`, `agience:collection`, `agience:memoryLayer`, `agience:artifactId`, `agience:contextGraphId`, `agience:subGraphName`, `schema:isPartOf`) |
 | **Receipt / provenance chain** | ❌ None | ✅ Seven structured receipt types (commit, grant, revoke, access, projection, publication, provenance) link every Agience commit to its DKG UAL |
-| **End-to-end MCP** | ✅ Transport only | ✅ Agience Core 11 MCP tools + 8 persona servers + this integration's 3 MCP tools + DKG node MCP Streamable HTTP |
+| **End-to-end MCP** | ✅ Transport only | ✅ Agience Core's 7 persona MCP servers (100+ tools) + this integration's 3 MCP tools + DKG node MCP Streamable HTTP |
 | **Dual transport** | MCP only | ✅ Speaks to the **local DKG v10 daemon HTTP API** *and* MCP Streamable HTTP — switchable per-call via `--transport daemon\|mcp` |
-| **Test coverage** | Package-level | ✅ 191 tests across 4 suites: integration package (79 unit + 5 integration), Agience Core DKG service (6+), FLARE (101) |
+| **Test coverage** | Package-level | ✅ 87 tests in this integration package (82 unit + 5 integration); for context, Agience Core adds 11 DKG-service tests and FLARE carries 101 search tests |
 
 > **DKG v10 rc.17 (12 Jun 2026).** This submission targets `v10.0.0-rc.17`, which retired the `/api/assertion/*` routes for one unified `/api/knowledge-assets` surface (OT-RFC-43), completed the three-tier memory model (Working → Shared → Verifiable), and gives every asset one stable UAL from draft through publish. The daemon client defaults to the new surface and falls back **once** to the legacy assertion routes on a `404` (pre-rc.17 daemons). rc.17 is also a breaking off-chain change requiring a one-time local store wipe on upgrade. **Fork note:** all `agience-core` and `flare-index` changes for this integration live on the author's forks at [github.com/Muffinman75](https://github.com/Muffinman75), not the upstream `Agience/*` repos.
 
@@ -54,6 +54,8 @@ The official `dkg mcp setup` makes MCP transport to DKG a commodity. This submis
 ## 3. What Makes This a Platform-Level Integration
 
 This is not a CLI wrapper around a DKG API endpoint. DKG awareness is embedded at multiple layers of the Agience platform itself.
+
+Two things are true at once, and the distinction matters. The integration **package** is a **standalone, contributor-owned package** (bounty §8) that reaches DKG over the public HTTP/MCP interfaces and Agience over its public API — it is *not* embedded in the DKG monorepo, which is the dependency posture the bounty prefers (§9, criterion 6: *standalone-repo-over-HTTP preferred over monorepo embedding*). Separately, the platform-depth changes below (DKG projection read model, receipt schema, policy routing, the `DkgProjectionPanel` UI) live on the maintainer's **disclosed fork** of `agience-core` (see the fork note in [`docs/demo-recording-guide.md`](docs/demo-recording-guide.md)), not in upstream Agience Core. So this is neither a thin API wrapper nor a fork of the node — it is a standalone integration that also demonstrates genuine platform depth.
 
 ### DKG models in Agience Core
 
@@ -89,7 +91,7 @@ Policy resolution follows a precedence chain: artifact → artifact_type → col
 
 **FLARE retrieval routing** — `resolve_retrieval_route()` maps policy classes to retrieval routes: `native-search` → Agience only, `protected-search` → FLARE only, `mixed-search` → Agience + FLARE. This determines whether raw content or derived projections reach DKG.
 
-**6 unit tests** (`backend/tests/test_dkg_integration_service.py`) covering receipt chain validation, policy precedence, FLARE routing, and projection validation.
+**11 unit tests** (`src/mantle/tests/test_dkg_integration_service.py`) covering receipt chain validation, policy precedence, FLARE routing, and projection validation.
 
 ### Cryptographic retrieval layer (FLARE)
 
@@ -109,7 +111,7 @@ FLARE provides **cryptographically enforced access control** on the retrieval pa
 
 | Layer | MCP capability |
 |---|---|
-| **Agience Core** | 11-tool MCP server at `/mcp` (Streamable HTTP) + 8 persona servers (Astra, Sage, Verso, Aria, Nexus, Atlas, Seraph, Ophan), each a standalone FastMCP process |
+| **Agience Core** | 7 persona MCP servers (Aria, Astra, Sage, Iris, Ophan, Seraph, Verso) at `/{persona}/mcp` (Streamable HTTP), each a standalone FastMCP process — 100+ tools collectively |
 | **Integration package** | MCP stdio server (`agience-dkg-mcp`) exposing `agience_wm_write`, `agience_promote`, `agience_search` — compatible with Claude Desktop, Cursor, Claude Code |
 | **DKG node** | MCP Streamable HTTP at `POST /mcp` — the integration's `DkgHttpClient` speaks JSON-RPC over SSE to the DKG node's MCP endpoint |
 
@@ -166,7 +168,7 @@ Operators who hold strong opinions against RAG-style retrieval (PAI, ARA, and th
 - **LLM-Wiki builders** implementing Karpathy's vision of a knowledge substrate natively legible to language models, continuously curated by a mixture of humans and agents
 - **Autoresearch loops** where notes, claims, decisions, and citations mature iteratively — Working Memory as the draft surface, Shared Memory as the team-visible layer
 
-**Credible first user.** The Agience platform itself is the first user: every artifact committed in an Agience workspace is a candidate for projection into DKG Working Memory, and the DKG receipt schema, policy mapping, and projection-validation paths described in §3 are already live in `agience-core`. The platform's SaaS deployment is in active preparation by the Agience maintainer, and the same governance layer is in flight as the white-labeled delivery substrate for a third-party product launch on a near-term horizon — which means the DKG-projection path documented here is on a credible path from "works locally for one developer" to "writes to DKG from a multi-tenant deployment with real authoring users." Independent of that timeline, the integration is also immediately usable by anyone running Agience Core locally (the repository linked in §1) against their own DKG v10 daemon, which is the configuration this submission's demo records.
+**Credible first user — the platform dogfoods the integration.** The Agience platform itself is the first user: every artifact committed in an Agience workspace is a candidate for projection into DKG Working Memory, and the DKG receipt schema, policy mapping, and projection-validation paths described in §3 are live in `agience-core` (on the maintainer's disclosed fork — see the fork note in [`docs/demo-recording-guide.md`](docs/demo-recording-guide.md)). Agience now runs as a **hosted multi-tenant SaaS at [my.agience.ai](https://my.agience.ai)**: a reviewer can sign in, author and *commit* a real artifact, and drive `agience-dkg wm-write --from-agience-artifact <id>` against their own local DKG v10 daemon with **no local Agience stack** — the exact configuration this submission's demo records. That moves the DKG-projection path from "works locally for one developer" to "writes to DKG from a live multi-tenant deployment with real authoring users." The integration also remains immediately usable by anyone self-hosting Agience Core locally (the repository linked in §1) against their own DKG v10 daemon.
 
 ---
 
@@ -213,7 +215,7 @@ A research agent spends most of its life drafting and revising; only a small tai
 
 ### Adapter pattern for OpenClaw / Hermes / autoresearch agents
 
-The bounty (§4) calls out OpenClaw, Hermes, and comparable long-horizon autonomous research agents as priority integration targets. This integration is **not an OpenClaw plugin or a Hermes fork** — it is the governance substrate those agents plug into. A concrete adapter pattern, buildable in a Round 2 follow-up:
+The bounty (§4) calls out OpenClaw, Hermes, and comparable long-horizon autonomous research agents as priority integration targets. This integration is **not an OpenClaw plugin or a Hermes fork** — it is the governance substrate those agents plug into. The pattern below is **demonstrable today over MCP**: any MCP-capable agent — OpenClaw, Hermes, Claude Code, Cursor — authors into Agience through its persona MCP servers, and the committed artifact reaches DKG with provenance intact. (A bespoke adapter that embeds in the *native* OpenClaw/Hermes runtime, rather than over MCP, is the Round 2 follow-up.) The concrete flow:
 
 1. **Agent produces an artifact** — OpenClaw drafts a Telegram-orchestrated build note; Hermes-style autoresearch loop emits a research claim with citations; Claude Code sub-agent emits a code-review summary.
 2. **Artifact is deposited as a `draft` Agience card** — typed by the agent itself (`research-note`, `decision`, `code-review`, etc.) via the Agience Core MCP tool surface. Identity carries: the agent's `agience:Person` (or `agience:Agency`), `agience:Authority`, and the originating tool's `agience:MCPClient`.
@@ -328,7 +330,7 @@ Integration Package (bridge)
 An Agience artifact reaches Shared Memory when:
 1. It has been committed in Agience (explicit human-review boundary)
 2. Its collection policy marks it `swm-eligible` via `PolicyMappingRecord.promotion_profile`
-3. The operator explicitly calls `agience-dkg promote <turnUri> --context-graph-id <id>`
+3. The operator explicitly calls `agience-dkg promote <ka-name> --context-graph-id <id>` (the Knowledge Asset name returned by `wm-write`)
 
 This calls `dkg-create` with `privacy=public` — a Curator-authorized operation. Nothing is promoted automatically.
 
@@ -336,8 +338,8 @@ This calls `dkg-create` with `privacy=public` — a Curator-authorized operation
 
 rc.17 completes the three-tier model, so VM publish is reachable today:
 
-- The operator runs `agience-dkg vm-publish <turnUri> --context-graph-id <id>`, which maps to `POST /api/knowledge-assets/{name}/vm/publish` (daemon only)
-- The `turnUri` (UAL) chain is preserved through all promotions — rc.17 gives each asset **one stable UAL from draft onward**, so publishing promotes the asset up a layer with no re-IDing
+- The operator runs `agience-dkg vm-publish <ka-name> --context-graph-id <id>`, which maps to `POST /api/knowledge-assets/{name}/vm/publish` (daemon only)
+- The Knowledge Asset **name is its stable UAL** and is preserved through all promotions — rc.17 gives each asset **one stable UAL/name from draft onward**, so publishing promotes the asset up a layer with no re-IDing. (Note: the rc.17 per-turn `turnUri` ends in a revision index and is *not* the promotion handle — SHARE/PUBLISH take the KA name.)
 - The receipt schema records `ProjectionReceipt` and `PublicationReceipt` types linking `assertion_id`, `ual`, `dkg_stage`, and `publish_state`; `vm-publish` writes the live UAL/stage back to the Agience artifact (best-effort)
 - Policy profiles (`vm-eligible`) and export profiles (`full-projection-allowed`) are defined in `PolicyMappingRecord`
 - Prerequisites: a finalized asset shared to SWM, an on-chain-registered Context Graph, plus gas + TRAC and a reliable RPC. Known daemon bug #1124: publishing to a **public** Context Graph (access-policy 0) fails with `NO_DATA_IN_SWM` — use a **private** Context Graph (access-policy 1)
@@ -419,7 +421,7 @@ Per bounty §7 (*"Use the established v10 vocabulary exactly. Deviations should 
 
 | Suite | Count | Scope |
 |---|---|---|
-| Integration package unit tests | 79 | Governance gate (Agience client + governed-mode CLI), MCP server tool definitions and message routing, JSON-LD vocabulary generation, error status detection, **daemon HTTP client: token resolution, WM/SWM write, promote/share, the rc.17 `/api/knowledge-assets` surface + one-time `404` legacy fallback, `vm_publish`, SPARQL with `GRAPH ?g` traversal**, MCP client operations, Pydantic models, formatter |
+| Integration package unit tests | 82 | Governance gate (Agience client + governed-mode CLI), MCP server tool definitions and message routing, JSON-LD vocabulary generation, error status detection, **daemon HTTP client: token resolution, WM/SWM write, promote/share, the rc.17 `/api/knowledge-assets` surface + one-time `404` legacy fallback, `vm_publish`, SPARQL with `GRAPH ?g` traversal**, MCP client operations, Pydantic models, formatter |
 | Integration package integration tests | 5 | End-to-end against a live DKG v10 daemon and/or MCP node: WM write, SWM promote, search, health check |
 | Agience Core DKG service tests | 6+ | Receipt chain validation, policy precedence, FLARE retrieval routing, projection validation, DKG projection read model (typed triples, committed/planned states, UAL remapping, latest-publication-per-stage) |
 | FLARE test suite | 101 | Crypto, identity, wire protocol, light cone, oracle service + threshold + peer protocol, signed ledger, storage signing, multi-endpoint failover, sealed key storage, padding, cell-key TTL, caching, centroid gate, end-to-end, concurrent revocation |

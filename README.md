@@ -10,7 +10,7 @@ See [`docs/vs-dkg-mcp-setup.md`](docs/vs-dkg-mcp-setup.md) for the head-to-head.
 
 DKG v10 provides the shared memory substrate. But what gets written there matters: raw LLM outputs are noise; governed, typed, attributed Knowledge Assets are signal. And when the source material is sensitive, a confidentiality boundary determines what reaches the shared layer.
 
-- **Agience Core** — governed authoring: typed artifacts, versioned collections, human-review commit gates, provenance receipts, 11-tool MCP server, 8 agent persona servers. DKG receipt schemas and policy routing are built directly into the platform.
+- **Agience Core** — governed authoring: typed artifacts (a first-class `content_type` media-type taxonomy), versioned collections, human-review commit gates, provenance receipts, 7 agent persona MCP servers exposing 100+ tools, and pluggable LLM providers (OpenAI, Anthropic, Azure OpenAI, Google AI, Cohere, Mistral, or local Ollama). DKG receipt schemas and policy routing are built directly into the platform.
 - **FLARE** — confidential retrieval: AES-256-GCM encrypted vector search with Shamir K-of-M threshold oracle, Ed25519 signed grant ledger, light-cone graph authorization. 101 tests, 95.6% recall vs plaintext FAISS.
 - **DKG v10** — open verifiable memory: Working Memory → Shared Memory → Verifiable Memory.
 
@@ -20,7 +20,7 @@ DKG v10 provides the shared memory substrate. But what gets written there matter
 
 - **Default transport — local DKG v10 daemon HTTP API.** Direct HTTP to `http://127.0.0.1:9201` (rc.17 unified surface: `POST /api/knowledge-assets`, `POST /api/knowledge-assets/{name}/wm/write`, `POST /api/knowledge-assets/{name}/swm/share`, `POST /api/knowledge-assets/{name}/vm/publish`, `POST /api/query`). Bearer token auto-read from `~/.dkg/auth.token`. WM writes do not require an on-chain publish. Transparent one-time `404` fallback to the legacy `/api/assertion/*` routes for pre-rc.17 daemons.
 - **Alternative transport — MCP Streamable HTTP.** Speaks JSON-RPC over SSE to a DKG node's `POST /mcp` endpoint (e.g. one fronted by `dkg mcp setup`). Selected per-call via `--transport mcp` or `DKG_TRANSPORT=mcp`.
-- **MCP stdio server** (`agience-dkg-mcp`) — exposes `agience_wm_write`, `agience_promote`, `agience_search` tools for Claude Desktop, Cursor, Claude Code, and any MCP host. Talks to either transport.
+- **MCP stdio server** (`agience-dkg-mcp`) — exposes `agience_wm_write`, `agience_promote`, `agience_search` tools for Claude Desktop, Cursor, Claude Code, OpenClaw, Hermes, and any MCP-capable agent or host. Talks to either transport.
 - Writes committed Agience artifacts to DKG v10 **Working Memory** as typed `agience:` RDF Knowledge Assets — SPARQL-queryable by type, author, collection, and memory layer. Daemon transport sends N-Triples-style quads; MCP transport sends the equivalent JSON-LD shape; both encode the same predicate set.
 - Promotes eligible assets to **Shared Memory** (SHARE) — daemon: `POST /api/knowledge-assets/{name}/swm/share` (the rc.17 rename of `promote`); MCP: `dkg-create` with `privacy=public`. Curator-authority, never automatic.
 - Publishes finalized assets to **Verifiable Memory** (on-chain) — daemon-only: `POST /api/knowledge-assets/{name}/vm/publish`, surfaced as the `agience-dkg vm-publish` CLI command. Best-effort: a failed on-chain publish still prints its receipt for diagnosis and writes back the live UAL/stage to Agience.
@@ -38,7 +38,7 @@ DKG v10 provides the shared memory substrate. But what gets written there matter
 | **Sensitive content** | Omitted or manually redacted | Physically encrypted by FLARE (AES-256-GCM per-cell, Shamir threshold oracle key issuance); only derived projections reach DKG |
 | **Knowledge Asset structure** | Generic `schema:Article` or flat JSON | Typed `agience:` RDF vocabulary with 8+ SPARQL-queryable predicates across Context Graphs |
 | **Provenance** | None or ad-hoc | Seven receipt types (commit, grant, revoke, access, projection, publication, provenance) generated on every commit |
-| **Test coverage** | Package-level tests | 191 tests across 4 suites: integration package (79 unit + 5 integration), Agience Core DKG service (6+), FLARE (101) |
+| **Test coverage** | Package-level tests | 87 tests in this integration package (82 unit + 5 integration). For context: Agience Core adds 11 DKG-service tests; FLARE carries 101 search tests. |
 
 ## Install
 
@@ -116,6 +116,8 @@ The default transport is **daemon** — direct HTTP to your local DKG v10 daemon
 
 Add `--from-agience-artifact <id>` to fetch a committed artifact from an Agience instance and refuse to project it unless its state is `committed`. Title, type, content, tags, and the `commit_receipt_id` are populated automatically:
 
+> **Reviewers — hosted Agience, no local stack needed.** Sign in at **[my.agience.ai](https://my.agience.ai)** ([docs](https://docs.agience.ai)), create and *commit* an artifact, copy your bearer token, then set `AGIENCE_BASE_URL=https://my.agience.ai` and `AGIENCE_TOKEN=<token>`. The only service you run locally is the DKG v10 daemon. (Self-hosting Agience Core via Docker is still fully supported — just point `AGIENCE_BASE_URL` at your local instance instead.)
+
 ```bash
 agience-dkg wm-write \
   --from-agience-artifact 9667ca6d-cc37-410f-944d-84b838fb46d0 \
@@ -175,7 +177,7 @@ package/                Python package source (agience_dkg_integration)
       formatter.py      artifact_to_markdown, session_uri_for_collection
       cli.py            agience-dkg CLI (wm-write, promote, vm-publish, search; --transport switch)
   tests/
-    unit/               79 unit tests (governance gate, both transports, rc.17 KA surface + 404 fallback, vm_publish, MCP server, JSON-LD, models)
+    unit/               82 unit tests (governance gate, both transports, rc.17 KA surface + 404 fallback, vm_publish, MCP server, JSON-LD, models)
     integration/        5 live-node integration tests
 docs/
   security-notes.md
@@ -188,7 +190,7 @@ LICENSE                 MIT
 ```
 
 **Parent platform repositories** (DKG models and FLARE integration are part of the same body of work):
-- [Agience Core](https://github.com/Agience/agience-core) — `backend/api/dkg_integration.py` (receipt schemas), `backend/services/dkg_integration_service.py` (policy mapping, projection validation + DKG projection read model), `frontend/src/components/workspace/DkgProjectionPanel.tsx` (DKG projection panel), DKG service tests
+- [Agience Core](https://github.com/Agience/agience-core) — `src/mantle/api/dkg_integration.py` (receipt schemas), `src/mantle/services/dkg_integration_service.py` (policy mapping, projection validation + DKG projection read model), `src/facet/src/components/workspace/DkgProjectionPanel.tsx` (DKG projection panel), 11 DKG-service tests
 - [FLARE Index](https://github.com/Agience/flare-index) — 101-test encrypted vector search, [research paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md)
 
 > **Fork note.** All `agience-core` and `flare-index` changes for this integration live on the author's forks ([github.com/Muffinman75](https://github.com/Muffinman75)), not the upstream `Agience/*` repos. Use the forks to review or reproduce the DKG projection read model, the `DkgProjectionPanel` UI, and the projection/publication endpoints referenced here.
@@ -197,9 +199,9 @@ LICENSE                 MIT
 
 | Suite | Count | Requires DKG node |
 |---|---|---|
-| Integration package unit tests | 79 | No |
+| Integration package unit tests | 82 | No |
 | Integration package integration tests | 5 | Yes |
-| Agience Core DKG service tests | 6+ | No |
+| Agience Core DKG service tests | 11 | No |
 | FLARE test suite | 101 | No (Docker only) |
 
 ```bash

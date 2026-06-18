@@ -37,7 +37,7 @@ When `retrieval_profile = protected-search`, FLARE mediates the retrieval path w
 All external domains contacted by this package:
 
 1. **DKG endpoint** — the `DKG_BASE_URL` value. With daemon transport this is the local DKG v10 daemon (default `http://127.0.0.1:9201`); with MCP transport it is a DKG node exposing `POST /mcp`. This is the only endpoint contacted in the default configuration.
-2. **Agience platform endpoint** — only when `--from-agience-artifact` is used; contacts `AGIENCE_BASE_URL` to fetch a governed artifact before projection.
+2. **Agience platform endpoint** — only when `--from-agience-artifact` is used; contacts `AGIENCE_BASE_URL` to fetch a governed artifact before projection. The hosted default is `https://my.agience.ai`; operators may point this at a self-hosted Agience instead.
 3. **FLARE service endpoint** — only when the operator explicitly enables `protected-search` mode. Disabled by default. When enabled, only derived summary/claim projections are written to DKG; raw artifact content remains FLARE-protected.
 
 No other external domains are contacted. No telemetry, no analytics endpoints, no remote module loading.

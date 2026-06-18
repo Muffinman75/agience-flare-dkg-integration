@@ -40,13 +40,13 @@ Show the key code files in Agience Core:
 
 ```bash
 # Show the DKG receipt schema (165 lines of Pydantic models)
-head -60 ../agience-core/backend/api/dkg_integration.py
+head -60 ../agience-core/src/mantle/api/dkg_integration.py
 
 # Show the policy mapping and projection validation
-head -40 ../agience-core/backend/services/dkg_integration_service.py
+head -40 ../agience-core/src/mantle/services/dkg_integration_service.py
 
 # Show that workspace_service calls build_commit_receipt on every commit
-grep -n "build_commit_receipt\|dkg_integration" ../agience-core/backend/services/workspace_service.py
+grep -n "build_commit_receipt\|dkg_integration" ../agience-core/src/mantle/services/workspace_service.py
 ```
 
 Narrate: "Every Agience commit already generates a DKG-compatible receipt with actor, authority, and artifact references. The policy model evaluates what content reaches DKG — and FLARE mediates the retrieval path when content is classified as confidential."
@@ -131,14 +131,14 @@ Show the Claude Desktop / Cursor config:
 }
 ```
 
-Narrate: "Any MCP-capable agent — Claude Desktop, Cursor, Claude Code — can add this config and immediately use `agience_wm_write`, `agience_promote`, `agience_search` tools. Combined with Agience Core's 11-tool MCP server, agents can curate knowledge and write to DKG memory in a single workflow."
+Narrate: "Any MCP-capable agent — Claude Desktop, Cursor, Claude Code — can add this config and immediately use `agience_wm_write`, `agience_promote`, `agience_search` tools. Combined with Agience Core's MCP server surface (7 persona servers, 100+ tools), agents can curate knowledge and write to DKG memory in a single workflow."
 
 ---
 
 ## Scene 7: Run the full test suite
 
 ```bash
-# Unit tests (79 tests, no live node needed)
+# Unit tests (82 tests, no live node needed)
 pytest package/tests/unit -v
 
 # Integration tests (requires live DKG node)
@@ -148,9 +148,9 @@ DKG_CONTEXT_GRAPH=agience-test \
 pytest package/tests/integration -v
 ```
 
-Expected output: `79 passed` (unit) + `5 passed` (integration).
+Expected output: `82 passed` (unit) + `5 passed` (integration).
 
-Narrate: "79 unit tests cover the MCP server tool definitions and message routing, the daemon HTTP client (token resolution, WM/SWM write, promote/share, the rc.17 `/api/knowledge-assets` surface + one-time `404` legacy fallback, `vm_publish`, SPARQL with `GRAPH ?g` traversal), typed JSON-LD generation with the agience vocabulary, error status detection, client operations, Pydantic models, the formatter, the Agience client governance gate (only `committed` artifacts may be projected), and the governed CLI flow. 5 integration tests run end-to-end against a live DKG v10 daemon or MCP-fronted node."
+Narrate: "82 unit tests cover the MCP server tool definitions and message routing, the daemon HTTP client (token resolution, WM/SWM write, promote/share, the rc.17 `/api/knowledge-assets` surface + one-time `404` legacy fallback, `vm_publish`, SPARQL with `GRAPH ?g` traversal), typed JSON-LD generation with the agience vocabulary, error status detection, client operations, Pydantic models, the formatter, the Agience client governance gate (only `committed` artifacts may be projected), and the governed CLI flow. 5 integration tests run end-to-end against a live DKG v10 daemon or MCP-fronted node."
 
 ---
 
@@ -176,7 +176,7 @@ Narrate: "FLARE provides the cryptographic confidentiality boundary. When an Agi
 - [ ] typed `agience:` JSON-LD vocabulary is shown and explained
 - [ ] `turn_uri` from wm-write is shown being passed to promote
 - [ ] blockchain anchoring state (`status: anchored` vs `pending`) is addressed
-- [ ] unit test run shows 79 passed
+- [ ] unit test run shows 82 passed
 - [ ] integration test run shows 5 passed
 - [ ] FLARE is referenced (test suite or paper)
 - [ ] no competitor submissions are mentioned

@@ -6,7 +6,7 @@
 
 This is the practical, scene-by-scene shooting script for the bounty submission video. It reflects the flow proved end-to-end on 2026-05-23 against the official OriginTrail v10 daemon: an OpenAI-powered LLM in Agience generates an Architecture Decision Record, a human commits it through Agience's governance boundary, and the integration projects it as a typed `agience:` Knowledge Asset directly into the local DKG v10 daemon — refusing to project anything still in `draft`.
 
-> **🎥 Recording plan for v0.4.0 — single daemon demo.** Re-record Scenes 2 (services), 4 (governance refusal), 6 (successful daemon write), 7 (file reference: `daemon_client.py`), 8 (test count `82 passed`). Scenes 1, 3, 5, 9, 10 can be reused if their narration still aligns with the daemon-first framing.
+> **🎥 Recording plan for v0.4.1 — single daemon demo.** Re-record Scenes 2 (services), 4 (governance refusal), 6 (successful daemon write), 6A (SHARE → Shared Memory), 6B (search read-back), 7 (file reference: `daemon_client.py`), 8 (test count `82 passed`). Scenes 1, 3, 5, 9, 10 can be reused if their narration still aligns with the daemon-first framing.
 >
 > **MCP transport is supported on the same code path** (`--transport mcp`, see Scene 7 narration and the README). Reviewers can exercise it themselves by pointing `DKG_BASE_URL` at an MCP-fronted DKG node once their side is reachable — no separate video is recorded, because the governance gate, JSON-LD payload shape, and CLI surface are transport-independent. This mirrors RepNet's single-flow recording posture.
 
@@ -69,6 +69,8 @@ DKG_CONTEXT_GRAPH=agience-demo
 # DKG_DAEMON_TOKEN is auto-read from ~/.dkg/auth.token; only set explicitly if you've moved it
 
 # Agience platform (for --from-agience-artifact)
+# Reviewers (recommended): use the hosted SaaS instead of a local stack:
+#   AGIENCE_BASE_URL=https://my.agience.ai
 AGIENCE_BASE_URL=http://localhost:8081
 AGIENCE_TOKEN=agc_...
 ```
@@ -139,7 +141,26 @@ agience-dkg wm-write --help | head
 
 ## 2. Recording — scene by scene
 
-Total target length: **8–10 minutes.** Tight, focused, no dead air.
+Total target length: **5–6 minutes** — per OriginTrail's guidance (FamousAmos, 17 Jun: *"5/6 mins would be perfect; 10 mins may be a bit too long"*). Tight, focused, no dead air.
+
+**Shot budget (the 5–6 minute submission cut).** The per-scene parenthetical times in the headings below are the *long-cut* originals — use this table for the submission cut. Deliver narration briskly and cut to the next scene the moment a command returns.
+
+| Scene | Cut | Budget |
+|---|---|---|
+| 1 — Why this exists | keep (trim) | 0:40 |
+| 2 — Three services | keep (quick cuts) | 0:15 |
+| 3 — Agent deposits draft (Scene 3A folded in as one sentence) | keep | 0:45 |
+| 4 — Governance refusal *(money shot)* | keep | 0:30 |
+| 5 — Human commit | keep | 0:30 |
+| 6 — Project to DKG WM (typed `agience:` KA) | keep | 0:45 |
+| 6A — SHARE → Shared Memory | keep | 0:30 |
+| 6B — Read it back via search | keep | 0:30 |
+| 7 — Typed RDF | **single-pane** (daemon side only) | 0:25 |
+| 8 + 9 — Tests + FLARE | **combine**, show counts only (82 / 5 / 101) | 0:25 |
+| 10 — Close | keep | 0:20 |
+| **Total** | | **≈ 5:35** |
+
+**Scene 3A is folded into Scene 3** as a single sentence — no separate segment. If you overrun, the first things to drop are Scene 1 detail and the Scene 7 split-view. **Never drop Scene 4** (the governance refusal) or **Scenes 6A/6B** (the Shared-Memory write→read loop, which is the round's actual scope).
 
 ### Scene 1 — Why this exists (60–75s, slide / talking head)
 
@@ -161,7 +182,7 @@ Quick cuts through the three terminals:
 
 Narrate: *"Three components running locally: the Agience platform on 8081, the official OriginTrail DKG v10 daemon on 9201, and the integration CLI. No testnet RPC, no public node — the whole demo loop runs against the daemon OriginTrail just shipped."*
 
-### Scene 3 — LLM generates an artifact inside Agience (90s)
+### Scene 3 — Agent deposits an artifact into Agience via MCP (90s)
 
 In the Agience UI, navigate to the **Inbox** workspace. Open the chat / "Ask anything" surface. Paste:
 
@@ -174,9 +195,17 @@ Format as Markdown.
 
 Press send. Wait for Aria's tool calls to land. A new **draft** artifact appears in the workspace with the ADR content.
 
-Narrate: *"The OpenAI-powered chat agent calls Agience's `create_artifact` MCP tool. The result is a real, typed artifact in the workspace — but it's a draft. Nothing has crossed the trust boundary yet."*
+Narrate: *"Any MCP-capable agent can deposit content into Agience — the demo uses the OpenAI-powered Aria agent calling Agience's `create_artifact` MCP tool, but the same tool surface is reachable by OpenClaw, Hermes, Claude Code, Cursor, or any agent that speaks MCP. Agience is the framework-agnostic ingestion and governance layer: it doesn't care which agent wrote the content, it cares whether a human has committed it. The result here is a real, typed artifact in the workspace — but it's a `draft`. Nothing has crossed the trust boundary yet."*
 
 Click into the new artifact. Show its state in the right-hand panel: **`draft`**.
+
+### Scene 3A — What this means for OpenClaw / Hermes agents (15s, narration only — no extra recording needed)
+
+> **Narration insert** (can be delivered as a voiceover cut while the draft artifact is on screen, or as a slide callout):
+>
+> *"A note on agent frameworks: `dkg-wm-bridge` targets OpenClaw and Hermes directly, requiring those specific agent runtimes. This integration is upstream of any framework. An OpenClaw agent, a Hermes agent, a Claude Code session — each one calls `agience_wm_write` via the MCP stdio server and deposits into Agience. What travels to DKG is always a committed artifact. The governance layer is the same regardless of which agent produced the content."*
+>
+> This is not a limitation — it's the architectural position: Agience's MCP server surface is the **framework-agnostic authoring interface**. Any agent that speaks MCP writes in; DKG receives only what a human approved.
 
 ### Scene 4 — The governance gate refuses to project a draft (45s)  🎥 **RE-RECORD**
 
@@ -266,6 +295,81 @@ Expected output (real, captured 2026-05-23):
 Narrate while it runs: *"The CLI fetches the committed artifact from Agience, builds a typed `agience:` RDF Knowledge Asset — `agience:decision` as the type, predicates for author, tags, collection, memory layer — attaches the commit receipt ID, and POSTs it as quads through `daemon_client.py` to the local DKG v10 daemon. On rc.17 that's one atomic call to the new `POST /api/knowledge-assets` surface, which opens an off-chain Working Memory draft with a single stable UAL. The MCP transport sends the same predicate set as JSON-LD — we'll see both side by side in Scene 7."*
 
 When it returns: *"Anchored. Eight RDF quads written. The Knowledge Asset has a stable assertion URI under the Context Graph and is immediately SPARQL-queryable. No testnet RPC was involved — this is the daemon's own local store."*
+
+### Scene 6A — SHARE to Shared Memory (60s)  🎥 **NEW** (the second half of the round's scope)
+
+This scene makes the **Shared Memory** layer visible — until now the demo only showed Working Memory. SHARE is the Curator-authorized promotion from WM → SWM.
+
+**The argument is the Knowledge Asset *name*, not the `turn_uri`.** On rc.17 the per-turn `turn_uri` ends in a numeric revision index and does **not** contain the name. The KA name is the slug of `<artifactId>-<title>` that `wm-write` created — the same slug visible at the tail of the legacy-style assertion URI. Capture it:
+
+```bash
+# KA name = <artifactId>-<title-slug>, e.g. for the Scene 6 ADR:
+kaName="${artifactId}-ADR-DKG-v10-as-Verifiable-Memory-Substrate"
+```
+
+Run the SHARE:
+
+```bash
+agience-dkg promote "$kaName" \
+  --transport daemon \
+  --context-graph-id "$DKG_CONTEXT_GRAPH" \
+  --base-url "$DKG_BASE_URL" \
+  --from-agience-artifact "$artifactId" \
+  --agience-base-url "$AGIENCE_BASE_URL" \
+  --agience-token "$AGIENCE_TOKEN"
+```
+
+Representative output (`AssertionPromoteResult`; capture the live JSON on the day):
+
+```json
+{
+  "ok": true,
+  "name": "<artifactId>-ADR-DKG-v10-as-Verifiable-Memory-Substrate",
+  "raw_response": {
+    "contextGraphId": "agience-demo",
+    "status": "shared"
+  }
+}
+```
+
+> rc.17: `promote` maps to `POST /api/knowledge-assets/{name}/swm/share` (the rename of `promote`), with a one-time `404` fallback to legacy `POST /api/assertion/{name}/promote`. It is **explicit and Curator-authorized — never automatic** (bounty §6, §7). The optional `--from-agience-artifact` records the SWM stage back onto the Agience artifact's DKG Projection panel (best-effort).
+
+Narrate: *"SHARE is the deliberate, Curator-authorized promotion from Working Memory to Shared Memory — the team-gossiped layer. Nothing is shared silently; an operator (or a delegated Curator-authority agent) makes the call. The same stable UAL carries up a layer — no re-IDing — which is exactly what keeps the path to Verifiable Memory a promotion rather than a rewrite."*
+
+### Scene 6B — Read it back across the team (45s)  🎥 **NEW** (closes the read/write loop)
+
+This is the payoff: a *different* agent (or teammate) finds the just-shared artifact by querying Shared Memory — the LLM-Wiki "retrieval and writing in one loop."
+
+```bash
+agience-dkg search "verifiable memory substrate" \
+  --transport daemon \
+  --context-graph-id "$DKG_CONTEXT_GRAPH" \
+  --layers swm \
+  --base-url "$DKG_BASE_URL"
+```
+
+Representative output (`MemorySearchResult`; capture live on the day):
+
+```json
+{
+  "result_count": 1,
+  "results": [
+    {
+      "s": "https://agience.ai/ontology/agience-demo/<artifactId>",
+      "name": "ADR: DKG v10 as Verifiable Memory Substrate",
+      "text": "## Context ... ## Decision ... ## Consequences ...",
+      "memoryLayer": "wm",
+      "artifactId": "<artifactId>",
+      "author": "Aria",
+      "collection": "<collection-id>"
+    }
+  ]
+}
+```
+
+> The query runs a SPARQL `SELECT` over `GRAPH ?g { … }` against `POST /api/query`, scoped to the Context Graph **inside** the SPARQL via `CONTAINS(STR(?s), cgId)`. (rc.17 note: the `contextGraphId` body field scopes `/api/query` to a meta-only view that excludes the `_shared_memory` / `_working_memory` content graphs, so the client deliberately omits it — see `daemon_client.py:memory_search`.) The `agience:` predicates make the row typed and attributable, not free text.
+
+Narrate: *"A teammate's agent didn't need to know who wrote this or where — it queries Shared Memory for the team's decisions and gets back a typed, attributed Knowledge Asset: author, collection, memory layer, the full text, all under the `agience:` vocabulary. Write on one side, read on the other — that's the shared memory substrate the round is about."*
 
 ### Scene 7 — Show the typed RDF (60s)  🎥 **RE-RECORD** (split view — both transports)
 
