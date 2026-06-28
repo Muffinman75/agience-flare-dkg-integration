@@ -346,7 +346,7 @@ def vm_publish(
     agience_base_url: str = typer.Option("", help="Agience backend URL (overrides AGIENCE_BASE_URL)"),
     agience_token: str = typer.Option("", help="Agience bearer token (overrides AGIENCE_TOKEN)"),
 ) -> None:
-    """Publish a shared Knowledge Asset to Verifiable Memory (on-chain, DKG v10 rc.17+).
+    """Publish a shared Knowledge Asset to Verifiable Memory (on-chain, DKG v10.0.1+).
 
     Mints (or updates) the Knowledge Asset on chain via the daemon's
     ``/api/knowledge-assets/{name}/vm/publish`` route. The assertion must already

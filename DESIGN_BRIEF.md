@@ -309,16 +309,19 @@ Agience Core (governed authoring)
   ▼
 Integration Package (bridge)
   │   formatter.py → typed agience: JSON-LD
-  │   cli.py / mcp_server.py (--transport switch)
+  │   cli.py (--transport daemon|mcp switch)
   │
-  ├─► DkgDaemonClient (HTTP) ────► Local DKG v10 daemon
-  │                                   /api/assertion/* — WM write
-  │                                   /api/assertion/*/promote — SHARE
+  ├─► DkgDaemonClient (HTTP) ────► Local DKG v10 daemon (v10.0.1)
+  │                                   /api/knowledge-assets — WM create+write
+  │                                   /api/knowledge-assets/{name}/wm/write — WM append
+  │                                   /api/knowledge-assets/{name}/swm/share — SHARE
+  │                                   /api/knowledge-assets/{name}/vm/publish — PUBLISH
   │                                   /api/query — SPARQL
+  │                                   (404 fallback to /api/assertion/* for pre-v10.0.1)
   │
-  └─► DkgHttpClient (MCP SSE) ───► DKG node /mcp
-                                      dkg-create — WM / SHARE
-                                      dkg-sparql-query — search
+  └─► DkgHttpClient (MCP Streamable HTTP) ───► DKG node /mcp
+                                                dkg-create — WM / SHARE
+                                                dkg-sparql-query — search
 ```
 
 ---
