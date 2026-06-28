@@ -19,8 +19,8 @@ Filed as PR against [`OriginTrail/dkg-integrations`](https://github.com/OriginTr
 - **Secondary interface:** DKG v10 MCP Streamable HTTP (`POST /mcp`) — `dkg-create` and `dkg-sparql-query` tools (for MCP-fronted nodes such as those configured via `dkg mcp setup`).
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
-- **Package version:** `0.4.2`
-- **Pinned commit SHA:** `482d081cae60bfe2b2e8fcc4896a1484c1ca1647` (v0.4.2 release commit)
+- **Package version:** `0.4.3`
+- **Pinned commit SHA:** `TBD` (v0.4.3 release commit — will be updated after tag is pushed)
 - **License:** MIT
 - **SPDX:** `MIT`
 - **Maintainer:** Manoj Modhwadia — manojmodhwadia@outlook.com — [@Muffinman75](https://github.com/Muffinman75)
@@ -81,5 +81,5 @@ This integration is part of a larger body of work spanning three repositories:
 - [x] Contributor attestation in `docs/maintainer-statement.md`
 - [x] 87 tests in this integration repo (82 unit + 5 integration); counted per-repo, Agience Core adds 11 DKG-service tests and FLARE 101 search tests (not summed)
 - [x] GitHub Actions CI (unit tests, dependency audit, build verification)
-- [x] Demo link — https://youtu.be/IvDyedXPqwU
+- [x] Demo link — https://youtu.be/g3OtdM0DKtE
 - [x] Design brief link — `DESIGN_BRIEF.md` in repo root

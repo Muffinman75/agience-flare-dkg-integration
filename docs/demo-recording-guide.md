@@ -1,12 +1,12 @@
 # Demo Recording Guide — Agience × DKG v10 Integration
 
-**Last updated:** 2026-06-28 (DKG v10.0.1; v0.4.2; Node UI walkthrough + testnet context graph registration)
+**Last updated:** 2026-06-28 (DKG v10.0.1; v0.4.3; Node UI walkthrough + testnet context graph registration)
 
 > **Fork note.** All `agience-core` and `flare-index` changes shown in this guide (DKG projection read model, the `DkgProjectionPanel` UI, projection/publication endpoints) live on the author's forks at [github.com/Muffinman75](https://github.com/Muffinman75), not the upstream `Agience/*` repos. Check out the forks to reproduce the UI and backend behaviour described here.
 
 This is the practical, scene-by-scene shooting script for the bounty submission video. It reflects the flow proved end-to-end on 2026-05-23 against the official OriginTrail v10 daemon: an OpenAI-powered LLM in Agience generates an Architecture Decision Record, a human commits it through Agience's governance boundary, and the integration projects it as a typed `agience:` Knowledge Asset directly into the local DKG v10 daemon — refusing to project anything still in `draft`.
 
-> **🎥 Recording plan for v0.4.2 — single daemon demo.** Re-record Scenes 2 (services), 4 (governance refusal), 6 (successful daemon write + Node UI), 6A (UI Promote to Shared Memory + Node UI), 6B (search read-back + Node UI), 7 (optional single-pane `daemon_client.py`), 8 (test count `82 passed`). Scenes 1, 3, 5, 9, 10 can be reused if their narration still aligns with the daemon-first framing.
+> **🎥 Recording plan for v0.4.3 — single daemon demo.** Re-record Scenes 2 (services), 4 (governance refusal), 6 (successful daemon write + Node UI), 6A (UI Promote to Shared Memory + Node UI), 6B (search read-back + Node UI), 7 (optional single-pane `daemon_client.py`), 8 (test count `82 passed`). Scenes 1, 3, 5, 9, 10 can be reused if their narration still aligns with the daemon-first framing.
 >
 > **MCP transport is supported on the same code path** (`--transport mcp`, see Scene 7 narration and the README). Reviewers can exercise it themselves by pointing `DKG_BASE_URL` at an MCP-fronted DKG node once their side is reachable — no separate video is recorded, because the governance gate, JSON-LD payload shape, and CLI surface are transport-independent. This mirrors RepNet's single-flow recording posture.
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from importlib.metadata import version as get_package_version
 
 import typer
 
@@ -21,6 +22,12 @@ from .models import AssertionPromoteRequest, MemorySearchRequest, MemoryTurnRequ
 
 DkgClient = DkgHttpClient | DkgDaemonClient
 
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"agience-dkg {get_package_version('agience-flare-dkg-integration')}")
+        raise typer.Exit()
+
+
 app = typer.Typer(
     help=(
         "agience-dkg \u2014 the governance layer above the OriginTrail DKG v10 daemon.\n\n"
@@ -34,6 +41,19 @@ app = typer.Typer(
         "Override any of these with flags, DKG_TRANSPORT, DKG_BASE_URL, or DKG_DAEMON_TOKEN."
     )
 )
+
+
+@app.callback()
+def main(
+    version: bool = typer.Option(
+        None,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Show the version and exit.",
+    ),
+) -> None:
+    pass
 
 
 def _ka_name_from_ref(ref: str) -> str:
