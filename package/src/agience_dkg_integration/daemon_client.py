@@ -2,8 +2,8 @@
 
 Talks to the daemon's local HTTP API (default ``http://127.0.0.1:9201``).
 
-As of DKG ``v10.0.0-rc.17`` the daemon retired the ``/api/assertion/*`` routes
-in favour of the unified, GitHub-shaped Knowledge Asset surface (OT-RFC-43):
+As of DKG ``v10.0.1`` (first introduced in ``v10.0.0-rc.17``) the daemon retired
+the ``/api/assertion/*`` routes in favour of the unified, GitHub-shaped Knowledge Asset surface (OT-RFC-43):
 
 * ``POST /api/knowledge-assets``                       — create KA + open WM draft
   (atomic: also writes quads, with optional ``finalize``/``alsoShareSwm``/``alsoPublishVm``)
@@ -15,14 +15,14 @@ in favour of the unified, GitHub-shaped Knowledge Asset surface (OT-RFC-43):
 * ``GET  /api/status``                                 — health probe (unchanged)
 
 The client defaults to the new ``/api/knowledge-assets`` surface and, if a route
-returns ``404`` (a pre-rc.17 daemon where it does not yet exist), transparently
+returns ``404`` (a pre-v10.0.1 daemon where it does not yet exist), transparently
 falls back **once** to the legacy ``/api/assertion/*`` routes and caches that
-decision — so the same code works against rc.16 and rc.17 daemons alike.
+decision — so the same code works against v10.0.0 / rc.17 / rc.16 daemons alike.
 
 This is the right path for governed authoring → DKG projection because:
 
 1. WM writes do **not** require an on-chain publish — the assertion stays on
-   the operator's daemon until ``promote`` is called explicitly.
+   the operator's daemon until ``share`` is called explicitly.
 2. SWM writes accept ``localOnly: true``, which keeps quads on the local node
    while exposing the same JSON shape an on-chain publish would return.
 3. There is no dependency on the public Pegasus gateway nodes (which are
@@ -137,8 +137,8 @@ class DkgDaemonClient:
             if timeout is not None
             else float(os.environ.get("DKG_TIMEOUT", "300"))
         )
-        # Cached daemon capability: None = unprobed, True = rc.17
-        # ``/api/knowledge-assets`` surface, False = pre-rc.17 legacy
+        # Cached daemon capability: None = unprobed, True = v10.0.1
+        # ``/api/knowledge-assets`` surface, False = pre-v10.0.1 legacy
         # ``/api/assertion`` routes. Set on the first WM write / share.
         self._ka_supported: Optional[bool] = None
 
@@ -267,13 +267,13 @@ class DkgDaemonClient:
     def memory_turn(self, request: MemoryTurnRequest) -> MemoryTurnResult:
         """Project a governed Agience artifact onto the daemon.
 
-        * ``layer == 'wm'`` → ``POST /api/knowledge-assets`` (rc.17: atomic
+        * ``layer == 'wm'`` → ``POST /api/knowledge-assets`` (v10.0.1: atomic
           create + write of an unsealed WM draft), with a one-time fallback to
-          the legacy ``/api/assertion/create`` + ``/write`` on pre-rc.17 daemons.
+          the legacy ``/api/assertion/create`` + ``/write`` on pre-v10.0.1 daemons.
           The result's ``turn_uri`` is the assertion URI the daemon returns.
         * ``layer == 'swm'`` → ``/api/shared-memory/write`` with
           ``localOnly: true``. The quads land on the daemon's local SWM graph
-          and are eligible for an explicit ``promote`` later. ``turn_uri`` is
+          and are eligible for an explicit ``share`` later. ``turn_uri`` is
           the daemon-issued ``shareOperationId``.
         """
         subject_uri = (
@@ -311,9 +311,9 @@ class DkgDaemonClient:
                 raw_response=resp,
             )
 
-        # Working Memory path. Prefer the rc.17 ``/api/knowledge-assets``
+        # Working Memory path. Prefer the v10.0.1 ``/api/knowledge-assets``
         # surface; fall back once to the legacy ``/api/assertion/*`` routes for
-        # pre-rc.17 daemons (the decision is cached on ``self._ka_supported``).
+        # pre-v10.0.1 daemons (the decision is cached on ``self._ka_supported``).
         assertion_name = _safe_assertion_name(
             request.artifact_id or "",
             request.title or "",
@@ -331,10 +331,10 @@ class DkgDaemonClient:
         assertion_name: str,
         quads: List[Dict[str, str]],
     ) -> Optional[MemoryTurnResult]:
-        """rc.17 WM write via ``POST /api/knowledge-assets`` (atomic create+write).
+        """v10.0.1 WM write via ``POST /api/knowledge-assets`` (atomic create+write).
 
         Sends ``finalize: false`` so the assertion stays an editable, off-chain
-        WM draft (no on-chain identity) that a later ``swm/share`` can promote.
+        WM draft (no on-chain identity) that a later ``swm/share`` can share.
         Returns a :class:`MemoryTurnResult`, or ``None`` if the route is absent
         (HTTP 404) so the caller can fall back to the legacy assertion routes.
         """
@@ -379,7 +379,7 @@ class DkgDaemonClient:
         assertion_name: str,
         quads: List[Dict[str, str]],
     ) -> MemoryTurnResult:
-        """Pre-rc.17 WM write via ``/api/assertion/create`` then ``/write``."""
+        """Pre-v10.0.1 WM write via ``/api/assertion/create`` then ``/write``."""
         try:
             create_resp = self._post(
                 "/api/assertion/create",
@@ -430,13 +430,13 @@ class DkgDaemonClient:
     def assertion_promote(
         self, request: AssertionPromoteRequest
     ) -> AssertionPromoteResult:
-        """Curator-authorized SHARE: promote a WM assertion to Shared Memory.
+        """Curator-authorized SHARE: share a WM assertion to Shared Memory.
 
-        rc.17 renamed ``promote`` → ``share``: calls
+        v10.0.1 renamed ``promote`` → ``share``: calls
         ``POST /api/knowledge-assets/{name}/swm/share``, which copies the
         assertion's quads onto the Context Graph's shared-memory view. Falls
         back once to the legacy ``POST /api/assertion/{name}/promote`` on
-        pre-rc.17 daemons. On-chain Verifiable Memory is :meth:`vm_publish`.
+        pre-v10.0.1 daemons. On-chain Verifiable Memory is :meth:`vm_publish`.
         """
         if self._ka_supported is not False:
             try:
@@ -465,7 +465,7 @@ class DkgDaemonClient:
                     ok=True, name=request.name, raw_response=resp
                 )
 
-        # Legacy fallback (pre-rc.17 daemons).
+        # Legacy fallback (pre-v10.0.1 daemons).
         try:
             resp = self._post(
                 f"/api/assertion/{request.name}/promote",
@@ -495,7 +495,7 @@ class DkgDaemonClient:
     ) -> Dict[str, Any]:
         """Publish a finalized + shared KA to Verifiable Memory (on-chain).
 
-        rc.17 only: ``POST /api/knowledge-assets/{name}/vm/publish``. Mints (or
+        v10.0.1 only: ``POST /api/knowledge-assets/{name}/vm/publish``. Mints (or
         updates) the Knowledge Asset on chain and returns the daemon's publish
         receipt (``{kaId, status, ual, txHash, merkleRoot, ...}``).
 
@@ -561,7 +561,7 @@ SELECT ?s ?name ?text ?memoryLayer ?artifactId ?author ?collection WHERE {{
 LIMIT {request.limit}"""
 
         try:
-            # NOTE: do NOT pass ``contextGraphId`` in the body. On rc.17 the
+            # NOTE: do NOT pass ``contextGraphId`` in the body. On v10.0.1 the
             # daemon uses it to scope ``/api/query`` to a meta-only view that
             # excludes the real ``…/_shared_memory/…`` and ``…/_working_memory/…``
             # content graphs, so a scoped query never sees the promoted quads.

@@ -19,15 +19,15 @@ Filed as PR against [`OriginTrail/dkg-integrations`](https://github.com/OriginTr
 - **Secondary interface:** DKG v10 MCP Streamable HTTP (`POST /mcp`) — `dkg-create` and `dkg-sparql-query` tools (for MCP-fronted nodes such as those configured via `dkg mcp setup`).
 - **Repository:** https://github.com/Muffinman75/agience-flare-dkg-integration
 - **Package:** `agience-flare-dkg-integration` on PyPI
-- **Package version:** `0.4.3`
-- **Pinned commit SHA:** `f63641905ac135b3caf39d0e76ab97d06f0e431a` (v0.4.3 release commit)
+- **Package version:** `0.4.4`
+- **Pinned commit SHA:** `TBD` (v0.4.4 release commit — will be updated after tagging)
 - **License:** MIT
 - **SPDX:** `MIT`
 - **Maintainer:** Manoj Modhwadia — manojmodhwadia@outlook.com — [@Muffinman75](https://github.com/Muffinman75)
 
 ## Declared network egress
 
-1. DKG endpoint (`DKG_BASE_URL`) — daemon default `http://127.0.0.1:9201`, MCP default `http://localhost:8083` — always.
+1. DKG endpoint (`DKG_BASE_URL`) — daemon default `http://127.0.0.1:9201`, MCP default `http://localhost:8083` (reference `dkg-node/apps/agent` setup); use `8081` for the DKG Edge Node Agent Web UI/API — always.
 2. Agience platform endpoint (`AGIENCE_BASE_URL`) — only when `--from-agience-artifact` is used to fetch a governed artifact before projection.
 3. FLARE service endpoint — only when `protected-search` mode is explicitly configured; disabled by default.
 
@@ -41,7 +41,7 @@ Filed as PR against [`OriginTrail/dkg-integrations`](https://github.com/OriginTr
 | `POST /api/knowledge-assets/{name}/wm/write` | Append quads to the WM draft | No |
 | `POST /api/shared-memory/write` (`localOnly=true`) | Working Memory write (direct SWM path) | No |
 | `POST /api/shared-memory/write` (`localOnly=false`) | Shared Memory write | **Yes** |
-| `POST /api/knowledge-assets/{name}/swm/share` | SHARE Working → Shared (renamed from `promote` in v10.0.1 / rc.17) | **Yes** |
+| `POST /api/knowledge-assets/{name}/swm/share` | SHARE Working → Shared (v10.0.1 operation historically called `promote`) | **Yes** |
 | `POST /api/knowledge-assets/{name}/vm/publish` | Publish to Verifiable Memory (on-chain) | **Yes** |
 | `POST /api/query` | SPARQL search | No |
 | `GET /api/status` / `GET /health` | Health check | No |
@@ -53,7 +53,7 @@ _Legacy fallback (pre-v10.0.1 daemons only, auto-detected on `404`): `POST /api/
 | Endpoint / Tool | Operation | Curator-sensitive |
 |---|---|---|
 | `POST /mcp` → `dkg-create` (privacy=private) | Write Knowledge Asset to Working Memory | No |
-| `POST /mcp` → `dkg-create` (privacy=public) | Promote to Shared Memory (SHARE) | **Yes** |
+| `POST /mcp` → `dkg-create` (privacy=public) | Share to Shared Memory (SHARE) | **Yes** |
 | `POST /mcp` → `dkg-sparql-query` | Search memory layers | No |
 | `GET /health` | Health check | No |
 
@@ -65,7 +65,7 @@ This integration is part of a larger body of work spanning three repositories:
 |---|---|---|
 | [Agience Core](https://github.com/Agience/agience-core) | Governed MCP-native artifact platform | `src/mantle/api/dkg_integration.py` (receipt schema), `src/mantle/services/dkg_integration_service.py` (policy mapping, projection validation + DKG projection read model), `src/facet/src/components/workspace/DkgProjectionPanel.tsx` (DKG projection panel), 11 DKG-service tests |
 | [FLARE Index](https://github.com/Agience/flare-index) | Cryptographic vector search | 101-test suite, AES-256-GCM per-cell encryption, Shamir K-of-M threshold oracle, [research paper](https://github.com/Agience/flare-index/blob/main/paper/flare.md) |
-| This repository | Integration bridge | MCP stdio server, daemon HTTP client (v10.0.1 KA surface + legacy fallback) + MCP Streamable HTTP client (selectable via `--transport`), typed JSON-LD, CLI (`wm-write`/`promote`/`vm-publish`/`search`), governed-mode (`--from-agience-artifact`) gate, 82 unit tests + 5 integration tests |
+| This repository | Integration bridge | MCP stdio server, daemon HTTP client (v10.0.1 KA surface + legacy fallback) + MCP Streamable HTTP client (selectable via `--transport`), typed JSON-LD, CLI (`wm-write`/`share`/`promote`-alias/`vm-publish`/`search`), governed-mode (`--from-agience-artifact`) gate, 82 unit tests + 5 integration tests |
 
 > **Fork note.** The `agience-core` and `flare-index` changes for this integration live on the author's forks ([github.com/Muffinman75](https://github.com/Muffinman75)), not the upstream `Agience/*` repos.
 

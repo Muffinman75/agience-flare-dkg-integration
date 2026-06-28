@@ -291,8 +291,8 @@ def test_ka_name_from_ref_accepts_legacy_assertion_uri():
     assert _ka_name_from_ref(ref) == "my-asset"
 
 
-def test_ka_name_from_ref_rejects_rc17_turn_uri():
-    """rc.17 WM/SWM/VM turnUris end in a revision index, not the KA name."""
+def test_ka_name_from_ref_rejects_v10_turn_uri():
+    """v10.0.1 WM/SWM/VM turnUris end in a revision index, not the KA name."""
     import typer
 
     from agience_dkg_integration.cli import _ka_name_from_ref

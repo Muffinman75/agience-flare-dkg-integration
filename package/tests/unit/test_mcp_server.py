@@ -15,7 +15,7 @@ class TestToolDefinitions:
 
     def test_tool_names(self):
         names = {t["name"] for t in TOOLS}
-        assert names == {"agience_wm_write", "agience_promote", "agience_search"}
+        assert names == {"agience_wm_write", "agience_share", "agience_search"}
 
     def test_wm_write_required_fields(self):
         """Only context_graph_id is statically required.
@@ -41,14 +41,14 @@ class TestToolDefinitions:
         assert "dkg-create" in desc
         assert "agience:" in desc
 
-    def test_promote_description_calls_out_curator(self):
-        promo = next(t for t in TOOLS if t["name"] == "agience_promote")
-        desc = promo["description"].lower()
+    def test_share_description_calls_out_curator(self):
+        share_tool = next(t for t in TOOLS if t["name"] == "agience_share")
+        desc = share_tool["description"].lower()
         assert "curator" in desc
 
-    def test_promote_required_fields(self):
-        promo = next(t for t in TOOLS if t["name"] == "agience_promote")
-        required = promo["inputSchema"]["required"]
+    def test_share_required_fields(self):
+        share_tool = next(t for t in TOOLS if t["name"] == "agience_share")
+        required = share_tool["inputSchema"]["required"]
         assert "turn_uri" in required
         assert "context_graph_id" in required
 
@@ -92,7 +92,7 @@ class TestMessageHandling:
         assert len(tools) == 3
         names = {t["name"] for t in tools}
         assert "agience_wm_write" in names
-        assert "agience_promote" in names
+        assert "agience_share" in names
         assert "agience_search" in names
 
     def test_initialized_notification_returns_none(self):

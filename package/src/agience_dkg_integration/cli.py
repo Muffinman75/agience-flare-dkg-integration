@@ -59,12 +59,12 @@ def main(
 def _ka_name_from_ref(ref: str) -> str:
     """Resolve a Knowledge Asset *name* from a CLI argument.
 
-    rc.17 keys SHARE/PUBLISH by the KA ``name`` returned by ``wm-write``
-    (e.g. ``<artifactId>-<title-slug>``), **not** by the ``turnUri``. The rc.17
+    DKG v10.0.1 keys SHARE/PUBLISH by the KA ``name`` returned by ``wm-write``
+    (e.g. ``<artifactId>-<title-slug>``), **not** by the ``turnUri``. The v10.0.1
     WM/SWM/VM ``turnUri`` ends in a numeric revision index
-    (``…/_working_memory/{addr}/{n}``) that does not contain the name, so it
+    (``\u2026/_working_memory/{addr}/{n}``) that does not contain the name, so it
     cannot be split back into one. Accept the KA name directly while still
-    tolerating a legacy ``…/assertion/{addr}/{name}`` URI (whose final path
+    tolerating a legacy ``\u2026/assertion/{addr}/{name}`` URI (whose final path
     segment *is* the name).
     """
     if any(
@@ -73,7 +73,7 @@ def _ka_name_from_ref(ref: str) -> str:
     ):
         raise typer.BadParameter(
             "Pass the Knowledge Asset name from wm-write output "
-            "(e.g. '<artifactId>-<title-slug>'), not the rc.17 turnUri \u2014 the "
+            "(e.g. '<artifactId>-<title-slug>'), not the v10.0.1 turnUri \u2014 the "
             "turnUri ends in a revision index and does not contain the KA name."
         )
     return ref.split("/")[-1]
@@ -94,7 +94,7 @@ def _client(
       Reads the bearer token from explicit ``--token`` →
       ``DKG_DAEMON_TOKEN`` → ``~/.dkg/auth.token`` → ``DKG_TOKEN``.
       WM writes do not require an on-chain publish; the daemon stores
-      assertions locally until ``promote`` is called.
+      assertions locally until ``share`` is called.
     * ``mcp``: talks to a DKG node's ``POST /mcp`` endpoint via MCP
       Streamable HTTP. Used for MCP-fronted nodes (e.g. those configured
       via ``dkg mcp setup``). Requires DKG_TOKEN.
@@ -286,32 +286,19 @@ def wm_write(
             )
 
 
-@app.command("promote")
-def promote(
-    turn_uri: str = typer.Argument(..., help="Knowledge Asset NAME from wm-write output (e.g. '<artifactId>-<title-slug>'). NOT the rc.17 turnUri."),
-    context_graph_id: str = typer.Option(..., help="DKG Context Graph ID"),
-    base_url: str = typer.Option("", help="DKG node base URL (overrides DKG_BASE_URL)"),
-    token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
-    transport: str = typer.Option("", "--transport", help="'daemon' (default) or 'mcp'. Overridable via DKG_TRANSPORT."),
-    from_agience_artifact: str = typer.Option(
-        "",
-        "--from-agience-artifact",
-        help=(
-            "Agience artifact id this assertion was projected from. When set, "
-            "the SWM promotion is recorded back to Agience so its DKG Projection "
-            "panel shows the Shared Memory stage. Best-effort; never blocks promote."
-        ),
-    ),
-    agience_base_url: str = typer.Option("", help="Agience backend URL (overrides AGIENCE_BASE_URL)"),
-    agience_token: str = typer.Option("", help="Agience bearer token (overrides AGIENCE_TOKEN)"),
+def _share(
+    turn_uri: str,
+    context_graph_id: str,
+    base_url: str | None,
+    token: str | None,
+    transport: str | None,
+    from_agience_artifact: str | None,
+    agience_base_url: str | None,
+    agience_token: str | None,
+    command_name: str = "share",
 ) -> None:
-    """Promote a Working Memory Knowledge Asset to Shared Memory (Curator-authorized SHARE).
-
-    Explicit and operator-initiated — never automatic. Eligibility is gated upstream
-    by the Agience `PolicyMappingRecord.promotion_profile` (must be `swm-eligible`
-    or `vm-eligible`). Preserves the UAL chain for Round 2 Verified Memory.
-    """
-    client = _client(base_url or None, token or None, transport or None)
+    """Shared implementation for share / promote (Curator-authorized SHARE to SWM)."""
+    client = _client(base_url, token, transport)
     name = _ka_name_from_ref(turn_uri)
     request = AssertionPromoteRequest(
         name=name,
@@ -340,14 +327,89 @@ def promote(
             )
         except AgienceClientError as exc:
             typer.echo(
-                f"Note: promote succeeded but recording it back to Agience failed: {exc}",
+                f"Note: {command_name} succeeded but recording it back to Agience failed: {exc}",
                 err=True,
             )
 
 
+@app.command("share")
+def share(
+    turn_uri: str = typer.Argument(..., help="Knowledge Asset NAME from wm-write output (e.g. '<artifactId>-<title-slug>'). NOT the v10.0.1 turnUri."),
+    context_graph_id: str = typer.Option(..., help="DKG Context Graph ID"),
+    base_url: str = typer.Option("", help="DKG node base URL (overrides DKG_BASE_URL)"),
+    token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
+    transport: str = typer.Option("", "--transport", help="'daemon' (default) or 'mcp'. Overridable via DKG_TRANSPORT."),
+    from_agience_artifact: str = typer.Option(
+        "",
+        "--from-agience-artifact",
+        help=(
+            "Agience artifact id this assertion was projected from. When set, "
+            "the SWM share is recorded back to Agience so its DKG Projection "
+            "panel shows the Shared Memory stage. Best-effort; never blocks share."
+        ),
+    ),
+    agience_base_url: str = typer.Option("", help="Agience backend URL (overrides AGIENCE_BASE_URL)"),
+    agience_token: str = typer.Option("", help="Agience bearer token (overrides AGIENCE_TOKEN)"),
+) -> None:
+    """Share a Working Memory Knowledge Asset to Shared Memory (Curator-authorized SHARE).
+
+    This is the v10.0.1 name for the operation historically called ``promote``.
+    Explicit and operator-initiated — never automatic. Eligibility is gated upstream
+    by the Agience `PolicyMappingRecord.promotion_profile` (must be `swm-eligible`
+    or `vm-eligible`). Preserves the UAL chain for Round 2 Verified Memory.
+    """
+    _share(
+        turn_uri=turn_uri,
+        context_graph_id=context_graph_id,
+        base_url=base_url or None,
+        token=token or None,
+        transport=transport or None,
+        from_agience_artifact=from_agience_artifact or None,
+        agience_base_url=agience_base_url or None,
+        agience_token=agience_token or None,
+        command_name="share",
+    )
+
+
+@app.command("promote")
+def promote(
+    turn_uri: str = typer.Argument(..., help="Knowledge Asset NAME from wm-write output (e.g. '<artifactId>-<title-slug>'). NOT the v10.0.1 turnUri."),
+    context_graph_id: str = typer.Option(..., help="DKG Context Graph ID"),
+    base_url: str = typer.Option("", help="DKG node base URL (overrides DKG_BASE_URL)"),
+    token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
+    transport: str = typer.Option("", "--transport", help="'daemon' (default) or 'mcp'. Overridable via DKG_TRANSPORT."),
+    from_agience_artifact: str = typer.Option(
+        "",
+        "--from-agience-artifact",
+        help=(
+            "Agience artifact id this assertion was projected from. When set, "
+            "the SWM share is recorded back to Agience so its DKG Projection "
+            "panel shows the Shared Memory stage. Best-effort; never blocks share."
+        ),
+    ),
+    agience_base_url: str = typer.Option("", help="Agience backend URL (overrides AGIENCE_BASE_URL)"),
+    agience_token: str = typer.Option("", help="Agience bearer token (overrides AGIENCE_TOKEN)"),
+) -> None:
+    """Backward-compatible alias for ``share`` (historically called promote).
+
+    Shares a Working Memory Knowledge Asset to Shared Memory (Curator-authorized SHARE).
+    """
+    _share(
+        turn_uri=turn_uri,
+        context_graph_id=context_graph_id,
+        base_url=base_url or None,
+        token=token or None,
+        transport=transport or None,
+        from_agience_artifact=from_agience_artifact or None,
+        agience_base_url=agience_base_url or None,
+        agience_token=agience_token or None,
+        command_name="promote",
+    )
+
+
 @app.command("vm-publish")
 def vm_publish(
-    turn_uri: str = typer.Argument(..., help="Knowledge Asset NAME from wm-write output (e.g. '<artifactId>-<title-slug>'). NOT the rc.17 turnUri."),
+    turn_uri: str = typer.Argument(..., help="Knowledge Asset NAME from wm-write output (e.g. '<artifactId>-<title-slug>'). NOT the v10.0.1 turnUri."),
     context_graph_id: str = typer.Option(..., help="DKG Context Graph ID (must be on-chain registered)"),
     sub_graph_name: str = typer.Option("", "--sub-graph-name", help="Optional named sub-graph to publish"),
     publish_epochs: int = typer.Option(0, "--publish-epochs", help="Number of epochs to keep the asset published (0 = daemon default)"),
@@ -370,7 +432,7 @@ def vm_publish(
 
     Mints (or updates) the Knowledge Asset on chain via the daemon's
     ``/api/knowledge-assets/{name}/vm/publish`` route. The assertion must already
-    be finalized and shared to SWM (run `promote` first), the Context Graph must
+    be finalized and shared to SWM (run `share` first), the Context Graph must
     be on-chain registered, and the node needs gas + TRAC and a reliable RPC.
 
     Daemon-only: VM publish has no MCP equivalent. Best-effort — a failed publish

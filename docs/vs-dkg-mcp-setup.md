@@ -1,6 +1,6 @@
 # `dkg mcp setup` vs Agience FLARE × DKG v10 Integration
 
-**Last updated:** 12 Jun 2026 (verified against DKG v10.0.0-rc.17, which retired the `/api/assertion/*` routes for the unified `/api/knowledge-assets` surface and completed the Working → Shared → Verifiable Memory model)
+**Last updated:** 28 Jun 2026 (verified against DKG v10.0.1, which retired the `/api/assertion/*` routes for the unified `/api/knowledge-assets` surface and completed the Working → Shared → Verifiable Memory model)
 
 > **Fork note.** The `agience-core` / `flare-index` components referenced here (governance gate, `CommitReviewDialog`, DKG projection panel, receipt schema) live on the author's forks at [github.com/Muffinman75](https://github.com/Muffinman75), not the upstream `Agience/*` repos.
 

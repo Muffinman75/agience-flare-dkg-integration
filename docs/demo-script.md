@@ -1,6 +1,6 @@
 # Demo Script — Agience FLARE × DKG v10 Integration
 
-> **Note (v0.4.0):** This script is the legacy MCP-flow walkthrough preserved for reference. The active recording guide is [`demo-recording-guide.md`](demo-recording-guide.md), which leads with the daemon transport that became default in v0.4.0 and is updated for DKG `v10.0.0-rc.17` (unified `/api/knowledge-assets` surface, Oxigraph pre-seed, one-time store wipe). Test counts and version numbers below are kept in sync, but the narration here describes the MCP transport explicitly.
+> **Note (v0.4.0):** This script is the legacy MCP-flow walkthrough preserved for reference. The active recording guide is [`demo-recording-guide.md`](demo-recording-guide.md), which leads with the daemon transport that became default in v0.4.0 and is updated for DKG `v10.0.1` (unified `/api/knowledge-assets` surface, Oxigraph pre-seed, one-time store wipe). Test counts and version numbers below are kept in sync, but the narration here describes the MCP transport explicitly.
 
 ## Goal
 
@@ -84,15 +84,16 @@ If `status: pending`: "The MCP transport succeeded — the DKG node accepted the
 
 ---
 
-## Scene 4: Promote to Shared Memory (SHARE)
+## Scene 4: Share to Shared Memory (SHARE)
 
 ```bash
-agience-dkg promote <turn_uri_from_above> --context-graph-id agience-demo
+agience-dkg share <turn_uri_from_above> --context-graph-id agience-demo
+# agience-dkg promote is still accepted as a backward-compatible alias.
 ```
 
-Expected output: JSON confirming the promotion (SHARE operation via `dkg-create` with `privacy=public`).
+Expected output: JSON confirming the share (SHARE operation via `dkg-create` with `privacy=public`).
 
-Narrate: "This is a Curator-authorized operation. Nothing is promoted automatically — the operator explicitly calls promote with the UAL from the Working Memory write."
+Narrate: "This is a Curator-authorized operation. Nothing is shared automatically — the operator explicitly calls share with the UAL from the Working Memory write."
 
 ---
 
@@ -131,7 +132,7 @@ Show the Claude Desktop / Cursor config:
 }
 ```
 
-Narrate: "Any MCP-capable agent — Claude Desktop, Cursor, Claude Code — can add this config and immediately use `agience_wm_write`, `agience_promote`, `agience_search` tools. Combined with Agience Core's MCP server surface (7 persona servers, 100+ tools), agents can curate knowledge and write to DKG memory in a single workflow."
+Narrate: "Any MCP-capable agent — Claude Desktop, Cursor, Claude Code — can add this config and immediately use `agience_wm_write`, `agience_share`, `agience_search` tools (`agience_promote` is still accepted as an alias). Combined with Agience Core's MCP server surface (7 persona servers, 100+ tools), agents can curate knowledge and write to DKG memory in a single workflow."
 
 ---
 
@@ -150,7 +151,7 @@ pytest package/tests/integration -v
 
 Expected output: `82 passed` (unit) + `5 passed` (integration).
 
-Narrate: "82 unit tests cover the MCP server tool definitions and message routing, the daemon HTTP client (token resolution, WM/SWM write, promote/share, the rc.17 `/api/knowledge-assets` surface + one-time `404` legacy fallback, `vm_publish`, SPARQL with `GRAPH ?g` traversal), typed JSON-LD generation with the agience vocabulary, error status detection, client operations, Pydantic models, the formatter, the Agience client governance gate (only `committed` artifacts may be projected), and the governed CLI flow. 5 integration tests run end-to-end against a live DKG v10 daemon or MCP-fronted node."
+Narrate: "82 unit tests cover the MCP server tool definitions and message routing, the daemon HTTP client (token resolution, WM/SWM write, share with promote alias, the v10.0.1 `/api/knowledge-assets` surface + one-time `404` legacy fallback, `vm_publish`, SPARQL with `GRAPH ?g` traversal), typed JSON-LD generation with the agience vocabulary, error status detection, client operations, Pydantic models, the formatter, the Agience client governance gate (only `committed` artifacts may be projected), and the governed CLI flow. 5 integration tests run end-to-end against a live DKG v10 daemon or MCP-fronted node."
 
 ---
 
@@ -174,7 +175,7 @@ Narrate: "FLARE provides the cryptographic confidentiality boundary. When an Agi
 - [ ] MCP transport (`POST /mcp`) is mentioned
 - [ ] MCP server (`agience-dkg-mcp`) is shown with Claude Desktop config
 - [ ] typed `agience:` JSON-LD vocabulary is shown and explained
-- [ ] `turn_uri` from wm-write is shown being passed to promote
+- [ ] `turn_uri` from wm-write is shown being passed to share (promote alias is acceptable)
 - [ ] blockchain anchoring state (`status: anchored` vs `pending`) is addressed
 - [ ] unit test run shows 82 passed
 - [ ] integration test run shows 5 passed
@@ -189,5 +190,5 @@ All DKG calls use the **MCP Streamable HTTP transport**:
 - `POST /mcp` calls `dkg-create` or `dkg-sparql-query` as MCP tools
 - Tool call responses stream back as SSE (`text/event-stream`); the client reads the first `data:` event
 - Working Memory write = `dkg-create` with `privacy: "private"`
-- Shared Memory promotion (SHARE) = `dkg-create` with `privacy: "public"`
+- Shared Memory share (SHARE) = `dkg-create` with `privacy: "public"`
 - Search = `dkg-sparql-query` with a SPARQL SELECT query

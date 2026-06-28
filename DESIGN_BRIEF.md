@@ -89,7 +89,7 @@ Policy resolution follows a precedence chain: artifact → artifact_type → col
 
 **Commit receipts on every commit** — `workspace_service.py` calls `build_commit_receipt()` on every workspace commit, generating a DKG-compatible receipt with actor, authority, and artifact references. Every Agience commit produces the provenance chain needed for DKG publication.
 
-**FLARE retrieval routing** — `resolve_retrieval_route()` maps policy classes to retrieval routes: `native-search` → Agience only, `protected-search` → FLARE only, `mixed-search` → Agience + FLARE. This determines whether raw content or derived projections reach DKG.
+**FLARE retrieval routing** — `resolve_retrieval_route()` maps policy classes to retrieval routes: `native-search` → Agience only, `protected-search` → FLARE only, `mixed-search` → Agience + FLARE. This determines whether raw content or derived projections reach DKG. The FLARE cryptographic engine itself (cell keys, threshold oracle, light-cone authorization, signed ledger) is implemented in the FLARE Index and Agience Core forks; this integration package consumes the FLARE policy decision and projects only the derived/allowed content to DKG.
 
 **11 unit tests** (`src/mantle/tests/test_dkg_integration_service.py`) covering receipt chain validation, policy precedence, FLARE routing, and projection validation.
 
@@ -112,7 +112,7 @@ FLARE provides **cryptographically enforced access control** on the retrieval pa
 | Layer | MCP capability |
 |---|---|
 | **Agience Core** | 7 persona MCP servers (Aria, Astra, Sage, Iris, Ophan, Seraph, Verso) at `/{persona}/mcp` (Streamable HTTP), each a standalone FastMCP process — 100+ tools collectively |
-| **Integration package** | MCP stdio server (`agience-dkg-mcp`) exposing `agience_wm_write`, `agience_promote`, `agience_search` — compatible with Claude Desktop, Cursor, Claude Code |
+| **Integration package** | MCP stdio server (`agience-dkg-mcp`) exposing `agience_wm_write`, `agience_share` (`agience_promote` alias), `agience_search` — compatible with Claude Desktop, Cursor, Claude Code |
 | **DKG node** | MCP Streamable HTTP at `POST /mcp` — the integration's `DkgHttpClient` speaks JSON-RPC over SSE to the DKG node's MCP endpoint |
 
 An agent in Claude Desktop can call Agience tools to curate knowledge, call DKG tools to write/search memory, and the policy layer decides what content flows where — all via MCP.
@@ -233,11 +233,11 @@ The same pattern composes for Cursor / Claude Code / Claude Desktop sub-agents (
 
 ### Integration package components
 
-- **`mcp_server.py`** — MCP stdio server exposing `agience_wm_write`, `agience_promote`, `agience_search` as MCP tools. Compatible with Claude Desktop, Cursor, Claude Code, and any MCP host.
+- **`mcp_server.py`** — MCP stdio server exposing `agience_wm_write`, `agience_share` (`agience_promote` alias), `agience_search` as MCP tools. Compatible with Claude Desktop, Cursor, Claude Code, and any MCP host.
 - **`daemon_client.py`** — `DkgDaemonClient` calling the local DKG v10 daemon's HTTP API directly. v10.0.1 unified surface: `POST /api/knowledge-assets`, `/wm/write`, `/swm/share`, `/vm/publish`, plus `/api/query` — with a transparent one-time `404` fallback to the legacy `/api/assertion/*` routes for pre-v10.0.1 daemons. **Canonical transport** for the v10 daemon shipped by OriginTrail.
 - **`client.py`** — `DkgHttpClient` calling `dkg-create` and `dkg-sparql-query` over MCP Streamable HTTP with SSE stream parsing. Reaches MCP-only DKG nodes (e.g. the `dkg-node/apps/agent` reference node and any node fronted by `dkg mcp setup`).
 - **`formatter.py`** — structured Markdown with RDF-extractable headers.
-- **`cli.py`** — `wm-write`, `promote`, `vm-publish`, `search` commands via `typer`, with a `--transport daemon\|mcp` switch (env override: `DKG_TRANSPORT`). `vm-publish` is daemon-only. Every `wm-write` invocation prints a `# agience-dkg wm-write — resolved invocation (copy to replay):` block to stdout before the HTTP call fires, showing all fully-resolved flags with tokens truncated to 8 chars — so testers and reviewers can copy the exact command from any terminal or captured log.
+- **`cli.py`** — `wm-write`, `share` (`promote` alias), `vm-publish`, `search` commands via `typer`, with a `--transport daemon\|mcp` switch (env override: `DKG_TRANSPORT`). `vm-publish` is daemon-only. Every `wm-write` invocation prints a `# agience-dkg wm-write — resolved invocation (copy to replay):` block to stdout before the HTTP call fires, showing all fully-resolved flags with tokens truncated to 8 chars — so testers and reviewers can copy the exact command from any terminal or captured log.
 - **`models.py`** — Pydantic request/response models with artifact metadata fields; both clients return identical shapes.
 
 ### Typed JSON-LD Knowledge Assets
@@ -281,7 +281,7 @@ The integration speaks both supported v10 public interfaces (bounty § 5):
 - `POST /api/knowledge-assets` — create a Knowledge Asset + open/write its WM draft (atomic; `finalize:false`)
 - `POST /api/knowledge-assets/{name}/wm/write` — append quads to the WM draft
 - `POST /api/shared-memory/write` (Working Memory `localOnly=true` and Shared Memory `localOnly=false`)
-- `POST /api/knowledge-assets/{name}/swm/share` — SHARE (Working → Shared); v10.0.1 / rc.17 rename of `promote`
+- `POST /api/knowledge-assets/{name}/swm/share` — SHARE (Working → Shared); v10.0.1 operation historically called `promote`
 - `POST /api/knowledge-assets/{name}/vm/publish` — PUBLISH to Verifiable Memory (on-chain)
 - `POST /api/query` — SPARQL search across named sub-graphs
 

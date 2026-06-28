@@ -137,7 +137,7 @@ def test_memory_turn_wm_creates_knowledge_asset_and_writes_quads() -> None:
     assert result.turn_uri == ka_resp["assertionUri"]
     assert client._ka_supported is True
 
-    # A single atomic create+write call to the rc.17 KA surface.
+    # A single atomic create+write call to the v10.0.1 KA surface.
     assert len(client.posts) == 1
     create_call = client.posts[0]
     assert create_call[0] == "/api/knowledge-assets"
@@ -151,7 +151,7 @@ def test_memory_turn_wm_creates_knowledge_asset_and_writes_quads() -> None:
 
 
 def test_memory_turn_wm_handles_already_exists() -> None:
-    """rc.17 surfaces re-runs natively via alreadyExists; still anchored."""
+    """v10.0.1 surfaces re-runs natively via alreadyExists; still anchored."""
     ka_resp = {
         "name": "already-exists",
         "assertionUri": "did:dkg:context-graph:cg-1/already-exists",
@@ -186,7 +186,7 @@ def test_memory_turn_wm_returns_pending_on_ka_failure() -> None:
 
 
 def test_memory_turn_wm_falls_back_to_legacy_on_404() -> None:
-    """A pre-rc.17 daemon (no KA route) falls back to /api/assertion/*."""
+    """A pre-v10.0.1 daemon (no KA route) falls back to /api/assertion/*."""
     create_resp = {
         "assertionUri": "did:dkg:context-graph:cg-1/assertion/0xWALLET/adr-1-Title",
     }
@@ -301,7 +301,7 @@ def test_assertion_promote_falls_back_to_legacy_on_404() -> None:
 
 
 # ----------------------------------------------------------------------------
-# vm_publish (Verifiable Memory — rc.17)
+# vm_publish (Verifiable Memory — v10.0.1)
 # ----------------------------------------------------------------------------
 
 
@@ -362,10 +362,10 @@ def test_memory_search_sends_graph_scoped_sparql() -> None:
     assert "schema:text" in sparql
     assert "agience:memoryLayer" in sparql
     assert 'IN ("wm")' in sparql
-    # Regression: must NOT pass contextGraphId in the body. rc.17 uses it to
+    # Regression: must NOT pass contextGraphId in the body. v10.0.1 uses it to
     # scope /api/query to a meta-only view that excludes the real
     # …/_shared_memory/… content graphs, so a scoped query never sees the
-    # promoted quads. Scope is enforced inside the SPARQL instead.
+    # shared quads. Scope is enforced inside the SPARQL instead.
     assert "contextGraphId" not in call[1]
     assert 'CONTAINS(STR(?s), "cg-1")' in sparql
 

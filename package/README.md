@@ -6,7 +6,7 @@ See the [head-to-head comparison](https://github.com/Muffinman75/agience-flare-d
 
 ## Features
 
-- **MCP stdio server** (`agience-dkg-mcp`) — exposes `agience_wm_write`, `agience_promote`, `agience_search` tools for Claude Desktop, Cursor, Claude Code, and any MCP host
+- **MCP stdio server** (`agience-dkg-mcp`) — exposes `agience_wm_write`, `agience_share` (`agience_promote` alias), `agience_search` tools for Claude Desktop, Cursor, Claude Code, and any MCP host
 - Writes committed Agience artifacts to DKG v10 **Working Memory** as typed JSON-LD Knowledge Assets with the `agience:` RDF vocabulary — SPARQL-queryable by type, author, collection, and memory layer
 - Promotes eligible assets to **Shared Memory** (SHARE) via the daemon's `POST /api/knowledge-assets/{name}/swm/share` (or `dkg-create` with `privacy=public` on MCP transport)
 - Searches across memory layers via the daemon's `POST /api/query` (or `dkg-sparql-query` on MCP transport)
@@ -37,7 +37,7 @@ Default config uses the local DKG v10 daemon — no token is needed because the 
 }
 ```
 
-Tools: `agience_wm_write`, `agience_promote`, `agience_search`.
+Tools: `agience_wm_write`, `agience_share` (`agience_promote` alias), `agience_search`.
 
 To target an MCP-fronted DKG node instead, add `"DKG_TRANSPORT": "mcp"`, set `"DKG_BASE_URL": "http://localhost:8083"`, and add `"DKG_TOKEN": "<mcp-bearer>"`.
 
@@ -56,10 +56,11 @@ agience-dkg wm-write \
   --context-graph-id agience-demo \
   --collection-id my-project
 
-# Promote to Shared Memory (SHARE)
+# Share to Shared Memory (SHARE)
 # Pass the Knowledge Asset NAME from the wm-write output (e.g. "art-001-Architecture-Decision-..."),
-# NOT the rc.17 turnUri (its trailing revision index does not contain the KA name).
-agience-dkg promote <ka-name> --context-graph-id agience-demo
+# NOT the v10.0.1 turnUri (its trailing revision index does not contain the KA name).
+agience-dkg share <ka-name> --context-graph-id agience-demo
+# agience-dkg promote is still accepted as a backward-compatible alias.
 
 # Search
 agience-dkg search "architecture decisions" --context-graph-id agience-demo

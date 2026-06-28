@@ -21,18 +21,18 @@ Commitment includes:
 
 The maintained surface is the DKG v10 public interface set declared in bounty § 5:
 
-**Daemon HTTP API (default transport — DKG `v10.0.0-rc.17` unified `/api/knowledge-assets` surface, OT-RFC-43):**
+**Daemon HTTP API (default transport — DKG `v10.0.1` unified `/api/knowledge-assets` surface, first introduced in `v10.0.0-rc.17`, OT-RFC-43):**
 - `POST /api/knowledge-assets` + `POST /api/knowledge-assets/{name}/wm/write` (Working Memory write)
 - `POST /api/shared-memory/write` (Shared Memory write)
-- `POST /api/knowledge-assets/{name}/swm/share` (Curator-authorized SHARE; rc.17 rename of `promote`)
+- `POST /api/knowledge-assets/{name}/swm/share` (Curator-authorized SHARE; v10.0.1 operation historically called `promote`)
 - `POST /api/knowledge-assets/{name}/vm/publish` (Curator-authorized PUBLISH — Verifiable Memory, on-chain)
 - `POST /api/query` (memory search)
 - `GET /api/status` (health probe)
 
-_Legacy `/api/assertion/*` routes are supported via a transparent one-time `404` fallback for pre-rc.17 daemons._
+_Legacy `/api/assertion/*` routes are supported via a transparent one-time `404` fallback for pre-v10.0.1 daemons._
 
 **MCP Streamable HTTP (alternative transport):**
-- `POST /mcp` → `dkg-create` tool (Working Memory write and Shared Memory promotion)
+- `POST /mcp` → `dkg-create` tool (Working Memory write and Shared Memory SHARE)
 - `POST /mcp` → `dkg-sparql-query` tool (memory search)
 - `GET /health` (health check)
 

@@ -55,7 +55,7 @@ Every DKG endpoint invoked by this package, across both supported public interfa
 | `POST /api/knowledge-assets/{name}/wm/write` | Append quads to the WM draft | Write (WM) |
 | `POST /api/shared-memory/write` (`localOnly=true`) | Write Working Memory layer (direct SWM path) | Write (WM) |
 | `POST /api/shared-memory/write` (`localOnly=false`) | Write Shared Memory layer | **Curator-authorized (SHARE)** |
-| `POST /api/knowledge-assets/{name}/swm/share` | Promote Working → Shared Memory (v10.0.1 / rc.17 rename of `promote`) | **Curator-authorized (SHARE)** |
+| `POST /api/knowledge-assets/{name}/swm/share` | Share Working → Shared Memory (v10.0.1 operation historically called `promote`) | **Curator-authorized (SHARE)** |
 | `POST /api/knowledge-assets/{name}/vm/publish` | Publish to Verifiable Memory (on-chain) | **Curator-authorized (PUBLISH)** |
 | `POST /api/query` | SPARQL search across named sub-graphs | Read-only |
 
@@ -67,20 +67,20 @@ _As of DKG `v10.0.1` (first introduced in `v10.0.0-rc.17`) the daemon retired th
 |---|---|---|
 | `GET /health` | Health check | Read-only |
 | `POST /mcp` → `dkg-create` (privacy=private) | Write Knowledge Asset to Working Memory | Write (WM) |
-| `POST /mcp` → `dkg-create` (privacy=public) | Promote to Shared Memory (SHARE) | **Curator-authorized (SHARE)** |
+| `POST /mcp` → `dkg-create` (privacy=public) | Share to Shared Memory (SHARE) | **Curator-authorized (SHARE)** |
 | `POST /mcp` → `dkg-sparql-query` | Search Working and/or Shared Memory | Read-only |
 
-All SHARE operations are **always explicit and operator-initiated** — invoked only by the `agience-dkg promote` CLI command or the `agience_promote` MCP tool, never as a side effect of a write.
+All SHARE operations are **always explicit and operator-initiated** — invoked only by the `agience-dkg share` CLI command (or backward-compatible `promote` alias) or the `agience_share` MCP tool (or `agience_promote` alias), never as a side effect of a write.
 
 PUBLISH toward Verifiable Memory is likewise **always explicit and operator-initiated** — invoked only by the `agience-dkg vm-publish` CLI command (daemon transport only; no MCP equivalent, no background loop). It is never triggered by a WM write or SHARE.
 
 ## MCP stdio server
 
-The `agience-dkg-mcp` entry point runs as an MCP stdio server. It reads `DKG_TOKEN`, `DKG_DAEMON_TOKEN`, `DKG_BASE_URL`, and `DKG_TRANSPORT` from environment variables only — credentials are never accepted as tool arguments. The server exposes three tools (`agience_wm_write`, `agience_promote`, `agience_search`) that call through to either `DkgDaemonClient` or `DkgHttpClient` (selected by `DKG_TRANSPORT`) with the same security properties as the CLI.
+The `agience-dkg-mcp` entry point runs as an MCP stdio server. It reads `DKG_TOKEN`, `DKG_DAEMON_TOKEN`, `DKG_BASE_URL`, and `DKG_TRANSPORT` from environment variables only — credentials are never accepted as tool arguments. The server exposes three tools (`agience_wm_write`, `agience_share` [`agience_promote` alias], `agience_search`) that call through to either `DkgDaemonClient` or `DkgHttpClient` (selected by `DKG_TRANSPORT`) with the same security properties as the CLI.
 
 ## Curator authority stance
 
-No SHARE or PUBLISH operation is invoked without explicit caller intent. The CLI `promote` command requires the operator to pass a `turnUri` and `context_graph_id` explicitly, and maps to either `POST /api/knowledge-assets/{name}/swm/share` (daemon transport, rc.17; legacy `POST /api/assertion/{name}/promote` only on `404` fallback) or `dkg-create` with `privacy=public` (MCP transport) — there is no background promotion loop. The `vm-publish` command similarly requires an explicit `turnUri` and on-chain-registered `context_graph_id`, and maps to `POST /api/knowledge-assets/{name}/vm/publish` (daemon only).
+No SHARE or PUBLISH operation is invoked without explicit caller intent. The CLI `share` command (backward-compatible `promote` alias) requires the operator to pass a `turnUri` and `context_graph_id` explicitly, and maps to either `POST /api/knowledge-assets/{name}/swm/share` (daemon transport; legacy `POST /api/assertion/{name}/promote` only on `404` fallback) or `dkg-create` with `privacy=public` (MCP transport) — there is no background promotion loop. The `vm-publish` command similarly requires an explicit `turnUri` and on-chain-registered `context_graph_id`, and maps to `POST /api/knowledge-assets/{name}/vm/publish` (daemon only).
 
 ## Dynamic code loading
 
@@ -96,4 +96,4 @@ This package:
 - MIT license, SPDX identifier `MIT`
 - `pip-audit -r requirements-audit.txt` clean against direct dependencies (`httpx`, `pydantic`, `typer`, `python-dotenv`) — no known vulnerabilities as of 2026-05-13. CVEs reported in indirect deps of `pip-audit` itself (`authlib`, `urllib3`, `pytest`, `python-multipart`) are not transitive from this package.
 - Dependencies pinned with lower bounds only (`httpx>=0.27`, `pydantic>=2.0,<3`, `typer>=0.12,<1`, `python-dotenv>=1.0`) for compatibility
-- Published to PyPI as `agience-flare-dkg-integration==0.4.3` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`); npm wrapper of the same name and version published with provenance via `actions/setup-node` + `npm publish --provenance`
+- Published to PyPI as `agience-flare-dkg-integration==0.4.4` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`); npm wrapper of the same name and version published with provenance via `actions/setup-node` + `npm publish --provenance`

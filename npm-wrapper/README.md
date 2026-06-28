@@ -26,9 +26,9 @@ npm install -g agience-flare-dkg-integration
 Then install the Python CLI it wraps:
 
 ```bash
-pipx install agience-flare-dkg-integration==0.4.3
+pipx install agience-flare-dkg-integration==0.4.4
 # or:
-python -m pip install --user agience-flare-dkg-integration==0.4.3
+python -m pip install --user agience-flare-dkg-integration==0.4.4
 ```
 
 If you invoke `agience-dkg` before the Python CLI is installed, the wrapper prints the install hint above and exits with code `127`.
@@ -39,7 +39,8 @@ All flags and subcommands pass through to the Python CLI unchanged:
 
 ```bash
 agience-dkg wm-write --title "session-note" --content "…"
-agience-dkg promote <ual>
+agience-dkg share <ual>
+# agience-dkg promote <ual> is still accepted as a backward-compatible alias.
 agience-dkg search "topic"
 ```
 

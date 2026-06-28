@@ -112,14 +112,15 @@ TOOLS = [
         },
     },
     {
-        "name": "agience_promote",
+        "name": "agience_share",
         "description": (
-            "Promote a Working Memory Knowledge Asset to Shared Memory (the v10 SHARE "
+            "Share a Working Memory Knowledge Asset to Shared Memory (the v10 SHARE "
             "operation). Curator-authorized and explicit — never automatic and never "
             "triggered as a side effect of a write. Eligibility is gated upstream by the "
             "Agience `PolicyMappingRecord.promotion_profile` (must be `swm-eligible` or "
             "`vm-eligible`). Publishes as a public Knowledge Asset via `dkg-create` "
-            "(privacy=public) while preserving the UAL chain for Round 2 Verified Memory."
+            "(privacy=public) while preserving the UAL chain for Round 2 Verified Memory. "
+            "Historically this tool was called `agience_promote`; the alias is still accepted."
         ),
         "inputSchema": {
             "type": "object",
@@ -242,7 +243,7 @@ def _execute_tool(name: str, arguments: Dict[str, Any]) -> str:
         result = client.memory_turn(request)
         return result.model_dump_json(indent=2)
 
-    elif name == "agience_promote":
+    elif name in {"agience_share", "agience_promote"}:
         turn_uri = arguments["turn_uri"]
         ref = turn_uri.split("/")[-1]
         request = AssertionPromoteRequest(
@@ -284,7 +285,7 @@ def _handle_message(msg: Dict[str, Any]) -> Dict[str, Any] | None:
                 "capabilities": {"tools": {}},
                 "serverInfo": {
                     "name": "agience-dkg",
-                    "version": "0.2.0",
+                    "version": "0.4.4",
                 },
             },
         }
