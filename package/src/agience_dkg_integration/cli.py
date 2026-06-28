@@ -192,6 +192,27 @@ def wm_write(
         typer.echo(f"Error: missing required option(s): {', '.join(missing)}{hint}", err=True)
         raise typer.Exit(1)
 
+    chosen_transport = (transport or os.environ.get("DKG_TRANSPORT") or "daemon").lower()
+    resolved_base_url = base_url or os.environ.get("DKG_BASE_URL") or (
+        "http://127.0.0.1:9201" if chosen_transport == "daemon" else "http://localhost:8083"
+    )
+    resolved_agience_url = agience_base_url or os.environ.get("AGIENCE_BASE_URL") or "http://localhost:8081"
+    _token_display = (token or "")[:8] + "..." if (token or "") else "(env/file)"
+    _agience_token_display = (agience_token or "")[:8] + "..." if (agience_token or "") else "(env)"
+    typer.echo(
+        "# agience-dkg wm-write — resolved invocation (copy to replay):\n"
+        f"agience-dkg wm-write \\\n"
+        f"  --transport {chosen_transport} \\\n"
+        f"  --from-agience-artifact \"{from_agience_artifact}\" \\\n"
+        f"  --title \"{title}\" \\\n"
+        f"  --artifact-type \"{artifact_type}\" \\\n"
+        f"  --context-graph-id \"{context_graph_id}\" \\\n"
+        f"  --base-url \"{resolved_base_url}\" \\\n"
+        f"  --token \"{_token_display}\" \\\n"
+        f"  --agience-base-url \"{resolved_agience_url}\" \\\n"
+        f"  --agience-token \"{_agience_token_display}\""
+    )
+
     client = _client(base_url or None, token or None, transport or None)
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
     markdown = artifact_to_markdown(

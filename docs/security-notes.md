@@ -55,11 +55,11 @@ Every DKG endpoint invoked by this package, across both supported public interfa
 | `POST /api/knowledge-assets/{name}/wm/write` | Append quads to the WM draft | Write (WM) |
 | `POST /api/shared-memory/write` (`localOnly=true`) | Write Working Memory layer (direct SWM path) | Write (WM) |
 | `POST /api/shared-memory/write` (`localOnly=false`) | Write Shared Memory layer | **Curator-authorized (SHARE)** |
-| `POST /api/knowledge-assets/{name}/swm/share` | Promote Working → Shared Memory (rc.17 rename of `promote`) | **Curator-authorized (SHARE)** |
+| `POST /api/knowledge-assets/{name}/swm/share` | Promote Working → Shared Memory (v10.0.1 / rc.17 rename of `promote`) | **Curator-authorized (SHARE)** |
 | `POST /api/knowledge-assets/{name}/vm/publish` | Publish to Verifiable Memory (on-chain) | **Curator-authorized (PUBLISH)** |
 | `POST /api/query` | SPARQL search across named sub-graphs | Read-only |
 
-_As of DKG `v10.0.0-rc.17` the daemon retired the `/api/assertion/*` routes for this unified `/api/knowledge-assets` surface (OT-RFC-43). The client falls back **once** to the legacy `/api/assertion/create`, `/api/assertion/{name}/write`, and `/api/assertion/{name}/promote` routes only if a pre-rc.17 daemon returns `404`._
+_As of DKG `v10.0.1` (first introduced in `v10.0.0-rc.17`) the daemon retired the `/api/assertion/*` routes for this unified `/api/knowledge-assets` surface (OT-RFC-43). The client falls back **once** to the legacy `/api/assertion/create`, `/api/assertion/{name}/write`, and `/api/assertion/{name}/promote` routes only if a pre-v10.0.1 daemon returns `404`._
 
 ### MCP Streamable HTTP
 
@@ -96,4 +96,4 @@ This package:
 - MIT license, SPDX identifier `MIT`
 - `pip-audit -r requirements-audit.txt` clean against direct dependencies (`httpx`, `pydantic`, `typer`, `python-dotenv`) — no known vulnerabilities as of 2026-05-13. CVEs reported in indirect deps of `pip-audit` itself (`authlib`, `urllib3`, `pytest`, `python-multipart`) are not transitive from this package.
 - Dependencies pinned with lower bounds only (`httpx>=0.27`, `pydantic>=2.0,<3`, `typer>=0.12,<1`, `python-dotenv>=1.0`) for compatibility
-- Published to PyPI as `agience-flare-dkg-integration==0.4.0` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`); npm wrapper of the same name and version published with provenance via `actions/setup-node` + `npm publish --provenance`
+- Published to PyPI as `agience-flare-dkg-integration==0.4.2` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`); npm wrapper of the same name and version published with provenance via `actions/setup-node` + `npm publish --provenance`

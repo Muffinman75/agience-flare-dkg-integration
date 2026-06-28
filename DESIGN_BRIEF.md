@@ -47,7 +47,7 @@ The official `dkg mcp setup` makes MCP transport to DKG a commodity. This submis
 | **Dual transport** | MCP only | ✅ Speaks to the **local DKG v10 daemon HTTP API** *and* MCP Streamable HTTP — switchable per-call via `--transport daemon\|mcp` |
 | **Test coverage** | Package-level | ✅ 87 tests in this integration package (82 unit + 5 integration); for context, Agience Core adds 11 DKG-service tests and FLARE carries 101 search tests |
 
-> **DKG v10 rc.17 (12 Jun 2026).** This submission targets `v10.0.0-rc.17`, which retired the `/api/assertion/*` routes for one unified `/api/knowledge-assets` surface (OT-RFC-43), completed the three-tier memory model (Working → Shared → Verifiable), and gives every asset one stable UAL from draft through publish. The daemon client defaults to the new surface and falls back **once** to the legacy assertion routes on a `404` (pre-rc.17 daemons). rc.17 is also a breaking off-chain change requiring a one-time local store wipe on upgrade. **Fork note:** all `agience-core` and `flare-index` changes for this integration live on the author's forks at [github.com/Muffinman75](https://github.com/Muffinman75), not the upstream `Agience/*` repos.
+> **DKG v10.0.1 (latest stable).** This submission targets `v10.0.1`, which ships the unified `/api/knowledge-assets` surface first introduced in `v10.0.0-rc.17` (OT-RFC-43), completed the three-tier memory model (Working → Shared → Verifiable), and gives every asset one stable UAL from draft through publish. The daemon client defaults to the new surface and falls back **once** to the legacy assertion routes on a `404` (pre-v10.0.1 daemons). v10.0.1 is also a breaking off-chain change requiring a one-time local store wipe on upgrade from pre-rc.17 versions. **Fork note:** all `agience-core` and `flare-index` changes for this integration live on the author's forks at [github.com/Muffinman75](https://github.com/Muffinman75), not the upstream `Agience/*` repos.
 
 ---
 
@@ -174,13 +174,13 @@ Operators who hold strong opinions against RAG-style retrieval (PAI, ARA, and th
 
 ## 5. Memory Layers Touched
 
-> **Plain-language framing.** Working Memory is the agent's private notebook — a fast, private scratchpad that survives node restart and is only visible to its owner. Shared Memory is the team whiteboard — gossip-propagated across nodes in the same Context Graph, visible to participants, but not yet anchored on-chain. Verifiable Memory is the on-chain trustable layer — completed in rc.17 and reachable here via `agience-dkg vm-publish`. This integration governs what enters each tier and under whose authority.
+> **Plain-language framing.** Working Memory is the agent's private notebook — a fast, private scratchpad that survives node restart and is only visible to its owner. Shared Memory is the team whiteboard — gossip-propagated across nodes in the same Context Graph, visible to participants, but not yet anchored on-chain. Verifiable Memory is the on-chain trustable layer — completed in v10.0.1 / rc.17 and reachable here via `agience-dkg vm-publish`. This integration governs what enters each tier and under whose authority.
 
 | Layer | Role in this integration |
 |---|---|
 | **Working Memory** | Primary write surface. Every committed Agience artifact that meets policy is written to Working Memory via the MCP `dkg-create` tool (privacy=private) over the Streamable HTTP transport at `POST /mcp`. |
 | **Shared Memory** | Promotion surface. Policy-eligible Working Memory artifacts are promoted via `dkg-create` (privacy=public) — the SHARE operation. Explicit and operator-initiated — never automatic. |
-| **Verifiable Memory** | On-chain publish path. rc.17 completes the three-tier model, so VM is reachable today via the daemon-only `agience-dkg vm-publish` command (`POST /api/knowledge-assets/{name}/vm/publish`). The promotion profiles, receipt lineage, and single stable UAL are preserved end-to-end — publishing just promotes the asset up a layer, with no re-IDing. See §9. |
+| **Verifiable Memory** | On-chain publish path. v10.0.1 completes the three-tier model, so VM is reachable today via the daemon-only `agience-dkg vm-publish` command (`POST /api/knowledge-assets/{name}/vm/publish`). The promotion profiles, receipt lineage, and single stable UAL are preserved end-to-end — publishing just promotes the asset up a layer, with no re-IDing. See §9. |
 
 ---
 
@@ -189,12 +189,12 @@ Operators who hold strong opinions against RAG-style retrieval (PAI, ARA, and th
 | Primitive | How used |
 |---|---|
 | **Context Graph** | One per Agience collection. `sessionUri` links every Knowledge Asset for a collection into a coherent named sub-graph, enabling oracle queries like *"all decisions for collection X"* via `GRAPH ?g` traversal. |
-| **Knowledge Asset** | One per committed Agience artifact. Written via `dkg-create` as typed JSON-LD with the `agience:` RDF vocabulary. Per the v10 Terms & Conditions, the on-chain ERC-1155 representation of a Knowledge Asset is established at PUBLISH time; in rc.17 the asset keeps **one stable UAL from draft onward**, so PUBLISH promotes that same asset up a layer rather than re-IDing it. The Round 1 demo exercises the WM/SWM path; the `vm-publish` command completes the VM leg for operators with an on-chain-registered Context Graph. |
+| **Knowledge Asset** | One per committed Agience artifact. Written via `dkg-create` as typed JSON-LD with the `agience:` RDF vocabulary. Per the v10 Terms & Conditions, the on-chain ERC-1155 representation of a Knowledge Asset is established at PUBLISH time; in v10.0.1 / rc.17 the asset keeps **one stable UAL from draft onward**, so PUBLISH promotes that same asset up a layer rather than re-IDing it. The Round 1 demo exercises the WM/SWM path; the `vm-publish` command completes the VM leg for operators with an on-chain-registered Context Graph. |
 | **Knowledge Collection** | Implicit per Agience collection. The stream of `wm-write` calls scoped to a single `sessionUri` constitutes a Knowledge Collection — a set of typed Knowledge Assets sharing a Context Graph and authority. Round 2 makes this explicit via `dkg.asset.create` with multi-asset content. |
-| **Working Memory** | First DKG landing zone for approved artifacts. Daemon transport (rc.17): atomic `POST /api/knowledge-assets` (create + write of an unsealed WM draft, `finalize:false`), or `/api/shared-memory/write` with `localOnly=true` for the direct SWM path. Legacy fallback: `POST /api/assertion/create` then `/write`. MCP transport: `dkg-create` with `privacy=private`. |
-| **Shared Memory** | Reached via SHARE — daemon transport (rc.17): `POST /api/knowledge-assets/{name}/swm/share` (the rename of `promote`; legacy fallback `POST /api/assertion/{name}/promote`). MCP transport: `dkg-create` with `privacy=public`. Explicit, Curator-authorised. |
+| **Working Memory** | First DKG landing zone for approved artifacts. Daemon transport (v10.0.1): atomic `POST /api/knowledge-assets` (create + write of an unsealed WM draft, `finalize:false`), or `/api/shared-memory/write` with `localOnly=true` for the direct SWM path. Legacy fallback: `POST /api/assertion/create` then `/write`. MCP transport: `dkg-create` with `privacy=private`. |
+| **Shared Memory** | Reached via SHARE — daemon transport (v10.0.1): `POST /api/knowledge-assets/{name}/swm/share` (the rename of `promote`; legacy fallback `POST /api/assertion/{name}/promote`). MCP transport: `dkg-create` with `privacy=public`. Explicit, Curator-authorised. |
 | **SHARE** | Promotion from Working Memory to Shared Memory. Called explicitly; never triggered silently. |
-| **PUBLISH** | Reachable in rc.17 via `agience-dkg vm-publish` → `POST /api/knowledge-assets/{name}/vm/publish` (daemon only). Explicit, Curator-authorised; requires a finalized+shared asset and an on-chain-registered Context Graph. Best-effort — a failed on-chain publish still prints its receipt. |
+| **PUBLISH** | Reachable in v10.0.1 via `agience-dkg vm-publish` → `POST /api/knowledge-assets/{name}/vm/publish` (daemon only). Explicit, Curator-authorised; requires a finalized+shared asset and an on-chain-registered Context Graph. Best-effort — a failed on-chain publish still prints its receipt. |
 | **Curator** | Authority model respected end-to-end. The Agience commit gate IS the Curator surface for projection: no `wm-write`, SHARE, or PUBLISH executes without an upstream `committed` state and an attached `commit_receipt_id` that resolves to a typed `agience:Authority` artifact. Maps directly onto the staging-paranet curator pattern documented in DKG v8 paranet examples (`DkgClient.paranet.reviewKnowledgeCollection`) — the Round-2 path registers an Agience-governed paranet on a chosen Supported Chain with the commit-gate as its KC submission policy. |
 | **UAL** | Preserved as the stable artifact reference. Receipt lineage traces back to the originating Agience artifact via the `ProvenanceReceipt` chain; UAL stability across WM → SWM → VM is by construction, not by re-mapping. |
 | **Entity** | Agience `Person`, `Authority`, `Authorizer`, `Agency`, `Account`, and `Invite` artifacts (see §3 "typed-artifact substrate") project as typed `agience:` Entities, so identity references on Knowledge Assets resolve to first-class graph nodes rather than free-text strings. |
@@ -234,10 +234,10 @@ The same pattern composes for Cursor / Claude Code / Claude Desktop sub-agents (
 ### Integration package components
 
 - **`mcp_server.py`** — MCP stdio server exposing `agience_wm_write`, `agience_promote`, `agience_search` as MCP tools. Compatible with Claude Desktop, Cursor, Claude Code, and any MCP host.
-- **`daemon_client.py`** — `DkgDaemonClient` calling the local DKG v10 daemon's HTTP API directly. rc.17 unified surface: `POST /api/knowledge-assets`, `/wm/write`, `/swm/share`, `/vm/publish`, plus `/api/query` — with a transparent one-time `404` fallback to the legacy `/api/assertion/*` routes for pre-rc.17 daemons. **Canonical transport** for the v10 daemon shipped by OriginTrail.
+- **`daemon_client.py`** — `DkgDaemonClient` calling the local DKG v10 daemon's HTTP API directly. v10.0.1 unified surface: `POST /api/knowledge-assets`, `/wm/write`, `/swm/share`, `/vm/publish`, plus `/api/query` — with a transparent one-time `404` fallback to the legacy `/api/assertion/*` routes for pre-v10.0.1 daemons. **Canonical transport** for the v10 daemon shipped by OriginTrail.
 - **`client.py`** — `DkgHttpClient` calling `dkg-create` and `dkg-sparql-query` over MCP Streamable HTTP with SSE stream parsing. Reaches MCP-only DKG nodes (e.g. the `dkg-node/apps/agent` reference node and any node fronted by `dkg mcp setup`).
 - **`formatter.py`** — structured Markdown with RDF-extractable headers.
-- **`cli.py`** — `wm-write`, `promote`, `vm-publish`, `search` commands via `typer`, with a `--transport daemon\|mcp` switch (env override: `DKG_TRANSPORT`). `vm-publish` is daemon-only.
+- **`cli.py`** — `wm-write`, `promote`, `vm-publish`, `search` commands via `typer`, with a `--transport daemon\|mcp` switch (env override: `DKG_TRANSPORT`). `vm-publish` is daemon-only. Every `wm-write` invocation prints a `# agience-dkg wm-write — resolved invocation (copy to replay):` block to stdout before the HTTP call fires, showing all fully-resolved flags with tokens truncated to 8 chars — so testers and reviewers can copy the exact command from any terminal or captured log.
 - **`models.py`** — Pydantic request/response models with artifact metadata fields; both clients return identical shapes.
 
 ### Typed JSON-LD Knowledge Assets
@@ -276,16 +276,16 @@ The integration distinguishes MCP transport success from blockchain anchoring st
 
 The integration speaks both supported v10 public interfaces (bounty § 5):
 
-**Daemon HTTP API (recommended, canonical).** Targets the official OriginTrail v10 daemon (`@origintrail-official/dkg`, `dkg start`). Bearer-token authenticated, JSON in / JSON out. rc.17 unified `/api/knowledge-assets` surface (OT-RFC-43); endpoints used:
+**Daemon HTTP API (recommended, canonical).** Targets the official OriginTrail v10 daemon (`@origintrail-official/dkg`, `dkg start`). Bearer-token authenticated, JSON in / JSON out. v10.0.1 unified `/api/knowledge-assets` surface (OT-RFC-43); endpoints used:
 
 - `POST /api/knowledge-assets` — create a Knowledge Asset + open/write its WM draft (atomic; `finalize:false`)
 - `POST /api/knowledge-assets/{name}/wm/write` — append quads to the WM draft
 - `POST /api/shared-memory/write` (Working Memory `localOnly=true` and Shared Memory `localOnly=false`)
-- `POST /api/knowledge-assets/{name}/swm/share` — SHARE (Working → Shared); rc.17 rename of `promote`
+- `POST /api/knowledge-assets/{name}/swm/share` — SHARE (Working → Shared); v10.0.1 / rc.17 rename of `promote`
 - `POST /api/knowledge-assets/{name}/vm/publish` — PUBLISH to Verifiable Memory (on-chain)
 - `POST /api/query` — SPARQL search across named sub-graphs
 
-_Pre-rc.17 daemons: the client transparently falls back **once** on a `404` to the legacy `POST /api/assertion/create`, `/write`, and `/promote` routes._
+_Pre-v10.0.1 daemons: the client transparently falls back **once** on a `404` to the legacy `POST /api/assertion/create`, `/write`, and `/promote` routes._
 
 The WM/SWM path runs **fully local** — no testnet RPC required for the demo loop; only `vm-publish` touches chain. The daemon manages its own anchoring policy.
 
@@ -336,10 +336,10 @@ This calls `dkg-create` with `privacy=public` — a Curator-authorized operation
 
 ### Shared Memory → Verifiable Memory (PUBLISH)
 
-rc.17 completes the three-tier model, so VM publish is reachable today:
+v10.0.1 completes the three-tier model, so VM publish is reachable today:
 
 - The operator runs `agience-dkg vm-publish <ka-name> --context-graph-id <id>`, which maps to `POST /api/knowledge-assets/{name}/vm/publish` (daemon only)
-- The Knowledge Asset **name is its stable UAL** and is preserved through all promotions — rc.17 gives each asset **one stable UAL/name from draft onward**, so publishing promotes the asset up a layer with no re-IDing. (Note: the rc.17 per-turn `turnUri` ends in a revision index and is *not* the promotion handle — SHARE/PUBLISH take the KA name.)
+- The Knowledge Asset **name is its stable UAL** and is preserved through all promotions — v10.0.1 gives each asset **one stable UAL/name from draft onward**, so publishing promotes the asset up a layer with no re-IDing. (Note: the v10.0.1 / rc.17 per-turn `turnUri` ends in a revision index and is *not* the promotion handle — SHARE/PUBLISH take the KA name.)
 - The receipt schema records `ProjectionReceipt` and `PublicationReceipt` types linking `assertion_id`, `ual`, `dkg_stage`, and `publish_state`; `vm-publish` writes the live UAL/stage back to the Agience artifact (best-effort)
 - Policy profiles (`vm-eligible`) and export profiles (`full-projection-allowed`) are defined in `PolicyMappingRecord`
 - Prerequisites: a finalized asset shared to SWM, an on-chain-registered Context Graph, plus gas + TRAC and a reliable RPC. Known daemon bug #1124: publishing to a **public** Context Graph (access-policy 0) fails with `NO_DATA_IN_SWM` — use a **private** Context Graph (access-policy 1)

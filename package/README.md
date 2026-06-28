@@ -8,10 +8,10 @@ See the [head-to-head comparison](https://github.com/Muffinman75/agience-flare-d
 
 - **MCP stdio server** (`agience-dkg-mcp`) — exposes `agience_wm_write`, `agience_promote`, `agience_search` tools for Claude Desktop, Cursor, Claude Code, and any MCP host
 - Writes committed Agience artifacts to DKG v10 **Working Memory** as typed JSON-LD Knowledge Assets with the `agience:` RDF vocabulary — SPARQL-queryable by type, author, collection, and memory layer
-- Promotes eligible assets to **Shared Memory** (SHARE) via `dkg-create` (privacy=public)
-- Searches across memory layers via `dkg-sparql-query` with typed predicates
-- All DKG calls use **MCP Streamable HTTP** at `POST /mcp` with SSE stream handling
-- Distinguishes MCP transport success from blockchain anchoring state (`status: anchored` vs `status: pending`)
+- Promotes eligible assets to **Shared Memory** (SHARE) via the daemon's `POST /api/knowledge-assets/{name}/swm/share` (or `dkg-create` with `privacy=public` on MCP transport)
+- Searches across memory layers via the daemon's `POST /api/query` (or `dkg-sparql-query` on MCP transport)
+- **Default transport:** direct HTTP to the local DKG v10 daemon at `http://127.0.0.1:9201`; bearer token auto-read from `~/.dkg/auth.token`. **Alternative transport:** MCP Streamable HTTP at `POST /mcp` with SSE stream handling
+- Distinguishes transport success from blockchain anchoring state (`status: anchored` vs `status: pending`)
 - FLARE optional path: when `policy_class = "internal-confidential"`, only derived projections reach DKG; raw content stays encrypted
 
 ## Install
@@ -22,7 +22,7 @@ pip install agience-flare-dkg-integration
 
 ## MCP Server (Claude Desktop, Cursor, etc.)
 
-Add to your MCP client config:
+Default config uses the local DKG v10 daemon — no token is needed because the daemon transport auto-reads `~/.dkg/auth.token`:
 
 ```json
 {
@@ -30,8 +30,7 @@ Add to your MCP client config:
     "agience-dkg": {
       "command": "agience-dkg-mcp",
       "env": {
-        "DKG_BASE_URL": "http://localhost:8081",
-        "DKG_TOKEN": "your-bearer-token"
+        "DKG_BASE_URL": "http://127.0.0.1:9201"
       }
     }
   }
@@ -40,11 +39,13 @@ Add to your MCP client config:
 
 Tools: `agience_wm_write`, `agience_promote`, `agience_search`.
 
+To target an MCP-fronted DKG node instead, add `"DKG_TRANSPORT": "mcp"`, set `"DKG_BASE_URL": "http://localhost:8083"`, and add `"DKG_TOKEN": "<mcp-bearer>"`.
+
 ## CLI
 
 ```bash
-export DKG_BASE_URL=http://localhost:8081
-export DKG_TOKEN=your-bearer-token
+# Default: local DKG v10 daemon. Bearer token auto-read from ~/.dkg/auth.token.
+# DKG_BASE_URL defaults to http://127.0.0.1:9201 if unset.
 
 # Write to Working Memory
 agience-dkg wm-write \
@@ -52,28 +53,37 @@ agience-dkg wm-write \
   --artifact-type decision \
   --artifact-id art-001 \
   --content "We will use DKG v10 Working Memory as the shared knowledge substrate." \
-  --context-graph-id my-context-graph \
+  --context-graph-id agience-demo \
   --collection-id my-project
 
 # Promote to Shared Memory (SHARE)
 # Pass the Knowledge Asset NAME from the wm-write output (e.g. "art-001-Architecture-Decision-..."),
 # NOT the rc.17 turnUri (its trailing revision index does not contain the KA name).
-agience-dkg promote <ka-name> --context-graph-id my-context-graph
+agience-dkg promote <ka-name> --context-graph-id agience-demo
 
 # Search
-agience-dkg search "architecture decisions" --context-graph-id my-context-graph
+agience-dkg search "architecture decisions" --context-graph-id agience-demo
 ```
+
+> **Resolved invocation block.** Every `wm-write` call prints a `# agience-dkg wm-write — resolved invocation (copy to replay):` block to stdout before the HTTP call fires, showing all fully-resolved flags with tokens truncated to 8 chars. Useful for testers and reviewers to copy and replay the exact command.
+
+For MCP-fronted DKG nodes, add `--transport mcp --base-url http://localhost:8083 --token <mcp-bearer>`.
 
 ## Python API
 
 ```python
-from agience_dkg_integration import DkgHttpClient, MemoryTurnRequest
+from agience_dkg_integration import DkgDaemonClient, MemoryTurnRequest
 from agience_dkg_integration.formatter import artifact_to_markdown, session_uri_for_collection
 
-client = DkgHttpClient(base_url="http://localhost:8081", bearer_token="token")
+# Default: local DKG v10 daemon. Bearer token auto-resolves from ~/.dkg/auth.token.
+client = DkgDaemonClient(base_url="http://127.0.0.1:9201")
+
+# Alternative: MCP-fronted DKG node
+# from agience_dkg_integration import DkgHttpClient
+# client = DkgHttpClient(base_url="http://localhost:8083", bearer_token="<mcp-bearer>")
 
 result = client.memory_turn(MemoryTurnRequest(
-    contextGraphId="my-context-graph",
+    contextGraphId="agience-demo",
     markdown=artifact_to_markdown(title="My Note", content="...", artifact_type="research-note", artifact_id="art-001"),
     layer="wm",
     sessionUri=session_uri_for_collection("my-project"),
