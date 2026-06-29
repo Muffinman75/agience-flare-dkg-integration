@@ -83,3 +83,4 @@ This integration is part of a larger body of work spanning three repositories:
 - [x] GitHub Actions CI (unit tests, dependency audit, build verification)
 - [x] Demo link — https://youtu.be/bFzoqER60is
 - [x] Design brief link — `DESIGN_BRIEF.md` in repo root
+
