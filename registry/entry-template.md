@@ -81,7 +81,7 @@ This integration is part of a larger body of work spanning three repositories:
 - [x] Contributor attestation in `docs/maintainer-statement.md`
 - [x] 87 tests in this integration repo (82 unit + 5 integration); counted per-repo, Agience Core adds 11 DKG-service tests and FLARE 101 search tests (not summed)
 - [x] GitHub Actions CI (unit tests, dependency audit, build verification)
-- [x] Demo link — https://youtu.be/bFzoqER60is
+- [x] Demo link — https://youtu.be/gduMkwpigkg
 - [x] Design brief link — `DESIGN_BRIEF.md` in repo root
 
 
