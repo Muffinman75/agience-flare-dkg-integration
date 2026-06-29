@@ -105,7 +105,7 @@ class DkgHttpClient:
                     "params": {
                         "protocolVersion": "2024-11-05",
                         "capabilities": {},
-                        "clientInfo": {"name": "agience-flare-dkg-integration", "version": "0.4.4"},
+                        "clientInfo": {"name": "agience-flare-dkg-integration", "version": "0.4.5"},
                     },
                 },
             )

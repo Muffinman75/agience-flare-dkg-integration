@@ -36,6 +36,9 @@ app = typer.Typer(
         "provenance receipts. Speaks two supported v10 public interfaces \u2014 the "
         "local daemon HTTP API (default, canonical) and MCP Streamable HTTP "
         "(for nodes fronted by `dkg mcp setup`).\n\n"
+        "Memory layer filtering in search is based on the DKG named graph "
+        "(…/_working_memory/…, …/_shared_memory/…) rather than the "
+        "provenance `agience:memoryLayer` triple.\n\n"
         "Defaults: --transport=daemon, --base-url=http://127.0.0.1:9201, "
         "daemon bearer token auto-read from ~/.dkg/auth.token. "
         "Override any of these with flags, DKG_TRANSPORT, DKG_BASE_URL, or DKG_DAEMON_TOKEN."
@@ -145,7 +148,14 @@ def wm_write(
     collection_id: str = typer.Option("", help="Agience collection ID (used for sessionUri grouping)"),
     author: str = typer.Option("", help="Author display name"),
     tags: str = typer.Option("", help="Comma-separated tags"),
-    layer: str = typer.Option("wm", help="Memory layer: wm (Working Memory) or swm (Shared Memory)"),
+    layer: str = typer.Option(
+        "wm",
+        help=(
+            "Memory layer: wm (Working Memory) or swm (Shared Memory). "
+            "Use `wm` for the private draft, then `share` to promote it to SWM. "
+            "Direct `swm` writes are also supported for already-public artifacts."
+        ),
+    ),
     base_url: str = typer.Option("", help="DKG node base URL (overrides DKG_BASE_URL)"),
     token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
     agience_base_url: str = typer.Option("", help="Agience backend URL (overrides AGIENCE_BASE_URL)"),
@@ -492,14 +502,24 @@ def search(
     query: str = typer.Argument(..., help="Natural language search query"),
     context_graph_id: str = typer.Option(..., help="DKG Context Graph ID"),
     limit: int = typer.Option(20, help="Maximum number of results"),
-    layers: str = typer.Option("", help="Comma-separated memory layers to search (e.g. wm,swm)"),
+    layers: str = typer.Option(
+        "",
+        help=(
+            "Comma-separated memory layers to search (e.g. wm,swm). "
+            "Filtering is done on the DKG named graph URI, so `--layers swm "
+            "returns only results resident in the Shared Memory graph."
+        ),
+    ),
     base_url: str = typer.Option("", help="DKG node base URL (overrides DKG_BASE_URL)"),
     token: str = typer.Option("", help="DKG bearer token (overrides DKG_TOKEN)"),
     transport: str = typer.Option("", "--transport", help="'daemon' (default) or 'mcp'. Overridable via DKG_TRANSPORT."),
 ) -> None:
     """Search Working / Shared Memory via SPARQL using `agience:` predicates.
 
-    Filterable by memory layer, artifact type, author, collection, and sessionUri.
+    Results are filtered by the DKG named graph location (WM vs SWM), not by the
+    provenance `agience:memoryLayer` triple. The layer shown in the output is
+    derived from the graph URI (e.g. `…/_shared_memory/…` → `swm`).
+
     Read-only. Scoped to the supplied Context Graph.
     """
     client = _client(base_url or None, token or None, transport or None)

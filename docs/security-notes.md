@@ -96,4 +96,4 @@ This package:
 - MIT license, SPDX identifier `MIT`
 - `pip-audit -r requirements-audit.txt` clean against direct dependencies (`httpx`, `pydantic`, `typer`, `python-dotenv`) — no known vulnerabilities as of 2026-05-13. CVEs reported in indirect deps of `pip-audit` itself (`authlib`, `urllib3`, `pytest`, `python-multipart`) are not transitive from this package.
 - Dependencies pinned with lower bounds only (`httpx>=0.27`, `pydantic>=2.0,<3`, `typer>=0.12,<1`, `python-dotenv>=1.0`) for compatibility
-- Published to PyPI as `agience-flare-dkg-integration==0.4.4` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`); npm wrapper of the same name and version published with provenance via `actions/setup-node` + `npm publish --provenance`
+- Published to PyPI as `agience-flare-dkg-integration==0.4.5` with build provenance via GitHub Actions (`pypa/gh-action-pypi-publish` with `attestations: true`); npm wrapper of the same name and version published with provenance via `actions/setup-node` + `npm publish --provenance`

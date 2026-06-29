@@ -285,7 +285,7 @@ def _handle_message(msg: Dict[str, Any]) -> Dict[str, Any] | None:
                 "capabilities": {"tools": {}},
                 "serverInfo": {
                     "name": "agience-dkg",
-                    "version": "0.4.4",
+                    "version": "0.4.5",
                 },
             },
         }

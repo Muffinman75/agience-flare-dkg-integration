@@ -528,15 +528,27 @@ class DkgDaemonClient:
     def memory_search(self, request: MemorySearchRequest) -> MemorySearchResult:
         """Search Working / Shared Memory via SPARQL ``POST /api/query``.
 
-        Filters by ``agience:contextGraphId`` and free-text ``schema:text``;
-        memory layer filtering is honoured when ``request.memory_layers`` is
-        provided.
+        Filters by ``agience:contextGraphId`` and free-text ``schema:text``.
+        Memory layer filtering is performed on the named graph URI because DKG
+        v10 stores WM/SWM content in separate graphs
+        (``…/_working_memory/…`` and ``…/_shared_memory/…``). The
+        ``agience:memoryLayer`` quad is preserved as a provenance record of the
+        original write layer, but the result's effective layer is derived from
+        graph location.
         """
         layers = request.memory_layers
         layer_filter = ""
         if layers:
-            quoted = ", ".join(f'"{l}"' for l in layers)
-            layer_filter = f"FILTER (?memoryLayer IN ({quoted}))"
+            conditions = []
+            for layer in layers:
+                if layer == "wm":
+                    conditions.append('CONTAINS(STR(?g), "_working_memory")')
+                elif layer == "swm":
+                    conditions.append('CONTAINS(STR(?g), "_shared_memory")')
+                elif layer == "vm":
+                    conditions.append('CONTAINS(STR(?g), "_verifiable_memory")')
+            if conditions:
+                layer_filter = "FILTER (" + " || ".join(conditions) + ")"
 
         # Assertion writes land on named sub-graphs (one per assertion plus the
         # ``_shared_memory`` graph for SWM), so we must traverse them via
@@ -545,7 +557,7 @@ class DkgDaemonClient:
         # precede SELECT on their own lines.
         sparql = f"""PREFIX schema: <{_SCHEMA_NS}>
 PREFIX agience: <{_AGIENCE_NS}>
-SELECT ?s ?name ?text ?memoryLayer ?artifactId ?author ?collection WHERE {{
+SELECT ?g ?s ?name ?text ?memoryLayer ?artifactId ?author ?collection WHERE {{
   GRAPH ?g {{
     ?s schema:text ?text .
     OPTIONAL {{ ?s schema:name ?name . }}
@@ -584,6 +596,17 @@ LIMIT {request.limit}"""
         for binding in bindings:
             if isinstance(binding, dict):
                 row = {k: v.get("value") if isinstance(v, dict) else v for k, v in binding.items()}
+                # Derive the effective memory layer from the named graph URI.
+                graph_uri = str(row.get("g", ""))
+                derived = "unknown"
+                if "_shared_memory" in graph_uri:
+                    derived = "swm"
+                elif "_working_memory" in graph_uri:
+                    derived = "wm"
+                elif "_verifiable_memory" in graph_uri:
+                    derived = "vm"
+                row["memoryLayer"] = derived
+                row.pop("g", None)
                 rows.append(row)
 
         return MemorySearchResult(

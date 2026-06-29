@@ -336,9 +336,11 @@ def test_memory_search_sends_graph_scoped_sparql() -> None:
         "result": {
             "bindings": [
                 {
+                    "g": {"value": "https://agience.ai/ontology/cg-1/_shared_memory/adr-1"},
                     "s": {"value": "https://agience.ai/ontology/cg-1/adr-1"},
                     "name": {"value": '"ADR title"'},
                     "text": {"value": '"body"'},
+                    "memoryLayer": {"value": '"wm"'},  # provenance record; should be overridden
                 }
             ]
         }
@@ -349,11 +351,12 @@ def test_memory_search_sends_graph_scoped_sparql() -> None:
         contextGraphId="cg-1",
         query="adr",
         limit=5,
-        memoryLayers=["wm"],
+        memoryLayers=["swm"],
     ))
 
     assert result.result_count == 1
     assert result.results[0]["s"] == "https://agience.ai/ontology/cg-1/adr-1"
+    assert result.results[0]["memoryLayer"] == "swm", "memoryLayer must be derived from graph URI"
 
     call = client.posts[0]
     assert call[0] == "/api/query"
@@ -361,7 +364,9 @@ def test_memory_search_sends_graph_scoped_sparql() -> None:
     assert "GRAPH ?g" in sparql, "Search must traverse named sub-graphs"
     assert "schema:text" in sparql
     assert "agience:memoryLayer" in sparql
-    assert 'IN ("wm")' in sparql
+    assert 'CONTAINS(STR(?g), "_shared_memory")' in sparql
+    assert 'IN ("wm")' not in sparql
+    assert 'IN ("swm")' not in sparql
     # Regression: must NOT pass contextGraphId in the body. v10.0.1 uses it to
     # scope /api/query to a meta-only view that excludes the real
     # …/_shared_memory/… content graphs, so a scoped query never sees the
